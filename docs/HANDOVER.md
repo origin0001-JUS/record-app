@@ -1,7 +1,8 @@
 # 회의록 자동화 웹앱 - 인수인계 문서
 
-> 작성일: 2026-03-25
+> 작성일: 2026-03-25 (최종 업데이트)
 > 프로젝트: record-app (회의 녹음/STT → NotebookLM → 요약/보고서/슬라이드)
+> GitHub: https://github.com/origin0001-JUS/record-app
 
 ---
 
