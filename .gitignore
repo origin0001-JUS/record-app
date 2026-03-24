@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+storage/
+data/
+__pycache__/
+*.pyc
+.venv/
+.bkit/
+.next/
+web/.next/
+web/src/generated/
+web/node_modules/
+*.node

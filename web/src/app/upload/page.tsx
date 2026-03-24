@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { Preset, OutputFormat } from "@/types";
+import { MEETING_TYPE_LABELS, OUTPUT_FORMAT_LABELS, type MeetingType } from "@/types";
+import { ACCEPTED_EXTENSIONS, MAX_FILE_SIZE } from "@/lib/constants";
+
+export default function UploadPage() {
+  const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [fileError, setFileError] = useState<string>("");
+
+  useEffect(() => {
+    fetch("/api/presets")
+      .then((res) => res.json())
+      .then(setPresets);
+  }, []);
+
+  const validateAndSetFile = (f: File) => {
+    setFileError("");
+    if (f.size > MAX_FILE_SIZE) {
+      setFileError(`파일 크기가 200MB를 초과합니다 (${(f.size / 1024 / 1024).toFixed(1)}MB)`);
+      return;
+    }
+    setFile(f);
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) validateAndSetFile(dropped);
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) validateAndSetFile(selected);
+  };
+
+  const detectFileType = (file: File): string => {
+    if (file.type.startsWith("audio/")) return "audio";
+    if (file.type.startsWith("video/")) return "video";
+    if (file.name.endsWith(".txt") || file.name.endsWith(".md")) return "stt_text";
+    return "text";
+  };
+
+  const handleSubmit = async () => {
+    if (!file || !selectedPresetId) return;
+    setIsSubmitting(true);
+
+    try {
+      // Generate a temporary job ID
+      const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      // Step 1: Upload file
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("jobId", jobId);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const { filePath, fileName } = await uploadRes.json();
+
+      // Step 2: Create job
+      const jobRes = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          presetId: selectedPresetId,
+          filePath,
+          fileName,
+          fileType: detectFileType(file),
+        }),
+      });
+      const job = await jobRes.json();
+
+      // Navigate to job detail
+      router.push(`/jobs/${job.id}`);
+    } catch (error) {
+      console.error("Submit error:", error);
+      setIsSubmitting(false);
+    }
+  };
+
+  const selectedPreset = presets.find((p) => p.id === selectedPresetId);
+  const selectedFormats: OutputFormat[] = selectedPreset
+    ? JSON.parse(selectedPreset.outputFormats)
+    : [];
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <h1 className="text-2xl font-bold">새 회의록 처리</h1>
+
+      {/* Step 1: File Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">1. 파일 업로드</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+              dragOver
+                ? "border-primary bg-primary/5"
+                : file
+                ? "border-green-500 bg-green-50 dark:bg-green-950/20"
+                : "border-muted-foreground/25 hover:border-muted-foreground/50"
+            }`}
+            onClick={() => document.getElementById("file-input")?.click()}
+          >
+            <input
+              id="file-input"
+              type="file"
+              accept={ACCEPTED_EXTENSIONS.join(",")}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            {file ? (
+              <div className="space-y-1">
+                <p className="font-medium">{file.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(1)} MB
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  클릭하거나 드래그하여 파일 변경
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-lg">파일을 드래그하거나 클릭하여 업로드</p>
+                <p className="text-sm text-muted-foreground">
+                  MP3, WAV, MP4, TXT, MD, PDF 지원 (최대 200MB)
+                </p>
+              </div>
+            )}
+          </div>
+          {fileError && (
+            <p className="text-destructive text-sm mt-2">{fileError}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Step 2: Preset Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">2. 프리셋 선택</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3">
+            {presets.map((preset) => {
+              const formats: OutputFormat[] = JSON.parse(preset.outputFormats);
+              const isSelected = selectedPresetId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => setSelectedPresetId(preset.id)}
+                  className={`text-left p-4 rounded-lg border-2 transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-transparent bg-muted/50 hover:bg-muted"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{preset.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {MEETING_TYPE_LABELS[preset.meetingType as MeetingType] || preset.meetingType}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      {formats.map((f) => (
+                        <Badge key={f} variant="secondary" className="text-xs">
+                          {OUTPUT_FORMAT_LABELS[f] || f}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Step 3: Confirm */}
+      {file && selectedPreset && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">3. 확인 및 시작</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-sm space-y-1">
+              <p>
+                <span className="text-muted-foreground">파일:</span> {file.name}
+              </p>
+              <p>
+                <span className="text-muted-foreground">프리셋:</span> {selectedPreset.name}
+              </p>
+              <p>
+                <span className="text-muted-foreground">생성할 산출물:</span>{" "}
+                {selectedFormats.map((f) => OUTPUT_FORMAT_LABELS[f]).join(", ")}
+              </p>
+            </div>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full"
+              size="lg"
+            >
+              {isSubmitting ? "처리 시작 중..." : "회의록 처리 시작"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

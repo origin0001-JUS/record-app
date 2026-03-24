@@ -1,0 +1,16 @@
+{
+  "name": "record-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:web": "cd web && npm run dev",
+    "dev:worker": "cd worker && uvicorn app.main:app --reload --port 8000",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:worker\"",
+    "db:migrate": "cd web && npx prisma migrate dev",
+    "db:seed": "cd web && npx tsx prisma/seed.ts",
+    "db:studio": "cd web && npx prisma studio"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

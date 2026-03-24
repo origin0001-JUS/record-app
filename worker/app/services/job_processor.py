@@ -1,0 +1,146 @@
+import asyncio
+import json
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+
+from sqlalchemy import update, select
+from app.config import OUTPUTS_PATH
+from app.db.database import async_session
+from app.db.models import Job
+from app.services.notebooklm_service import notebooklm_service
+
+logger = logging.getLogger(__name__)
+
+JOB_TIMEOUT_SECONDS = 600  # 10 minutes
+
+
+class JobProcessor:
+    def __init__(self, max_concurrent: int = 2):
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.tasks: dict[str, asyncio.Task] = {}
+
+    @property
+    def active_count(self) -> int:
+        return sum(1 for t in self.tasks.values() if not t.done())
+
+    async def submit(self, job_id: str, file_path: str, file_type: str, preset_config: dict):
+        task = asyncio.create_task(self._run_with_timeout(job_id, file_path, file_type, preset_config))
+        self.tasks[job_id] = task
+        logger.info(f"Submitted job {job_id}")
+
+    async def recover_interrupted_jobs(self):
+        """Mark jobs stuck in non-terminal status as error on worker restart."""
+        async with async_session() as session:
+            result = await session.execute(
+                select(Job).where(Job.status.notin_(["complete", "error", "pending"]))
+            )
+            stuck_jobs = result.scalars().all()
+            for job in stuck_jobs:
+                await session.execute(
+                    update(Job).where(Job.id == job.id).values(
+                        status="error",
+                        errorMessage="Worker가 재시작되어 작업이 중단되었습니다. 다시 시도해주세요.",
+                        statusMessage="Worker 재시작으로 중단됨",
+                        updatedAt=datetime.now(timezone.utc),
+                    )
+                )
+                logger.warning(f"Recovered interrupted job {job.id} (was: {job.status})")
+            await session.commit()
+            if stuck_jobs:
+                logger.info(f"Recovered {len(stuck_jobs)} interrupted job(s)")
+
+    async def _update_status(self, job_id: str, status: str, **kwargs):
+        async with async_session() as session:
+            values = {"status": status, "updatedAt": datetime.now(timezone.utc), **kwargs}
+            await session.execute(
+                update(Job).where(Job.id == job_id).values(**values)
+            )
+            await session.commit()
+
+    async def _run_with_timeout(self, job_id: str, file_path: str, file_type: str, preset_config: dict):
+        try:
+            await asyncio.wait_for(
+                self._run(job_id, file_path, file_type, preset_config),
+                timeout=JOB_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Job {job_id} timed out after {JOB_TIMEOUT_SECONDS}s")
+            await self._update_status(
+                job_id, "error",
+                errorMessage=f"작업 시간이 {JOB_TIMEOUT_SECONDS // 60}분을 초과했습니다.",
+                statusMessage="타임아웃",
+            )
+
+    async def _run(self, job_id: str, file_path: str, file_type: str, preset_config: dict):
+        async with self.semaphore:
+            try:
+                output_dir = OUTPUTS_PATH / job_id
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                output_formats = json.loads(preset_config.get("outputFormats", '["summary"]'))
+                prompt_template = preset_config.get("promptTemplate", "이 회의 내용을 요약해주세요.")
+                report_template = preset_config.get("reportTemplate", "briefing")
+                slide_format = preset_config.get("slideFormat", "detailed")
+                meeting_type = preset_config.get("meetingType", "custom")
+
+                # Step 1: Create notebook
+                await self._update_status(job_id, "uploading", statusMessage="노트북 생성 중...")
+                notebook_name = f"Meeting-{datetime.now().strftime('%Y%m%d-%H%M')}-{meeting_type}"
+                notebook_id = await notebooklm_service.create_notebook(notebook_name)
+                await self._update_status(job_id, "uploading", notebookId=notebook_id, statusMessage="소스 추가 중...")
+
+                # Step 2: Add source
+                if file_type in ("text", "stt_text"):
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        text_content = f.read()
+                    source_id = await notebooklm_service.add_source_text(
+                        notebook_id, text_content, title=f"Meeting-{meeting_type}"
+                    )
+                else:
+                    source_id = await notebooklm_service.add_source_file(notebook_id, file_path)
+                await self._update_status(job_id, "processing", sourceId=source_id, statusMessage="소스 처리 중...")
+
+                # Step 3: Generate summary via chat
+                if "summary" in output_formats:
+                    await self._update_status(job_id, "generating_summary", statusMessage="요약 생성 중...")
+                    summary = await notebooklm_service.generate_summary(notebook_id, prompt_template)
+                    summary_path = output_dir / "summary.md"
+                    summary_path.write_text(summary, encoding="utf-8")
+                    await self._update_status(job_id, "generating_summary", summaryText=summary)
+
+                # Step 4: Generate report (notebooklm-py v0.3.4 API)
+                if "report" in output_formats:
+                    await self._update_status(job_id, "generating_report", statusMessage="보고서 생성 중...")
+                    await notebooklm_service.generate_report(
+                        notebook_id, report_format="briefing_doc", language="ko"
+                    )
+                    report_path = str(output_dir / "report.md")
+                    await notebooklm_service.download_report(notebook_id, report_path)
+                    await self._update_status(job_id, "generating_report", reportPath=report_path)
+
+                # Step 5: Generate slides (notebooklm-py v0.3.4 API)
+                if "slides" in output_formats:
+                    await self._update_status(job_id, "generating_slides", statusMessage="슬라이드 생성 중...")
+                    await notebooklm_service.generate_slides(
+                        notebook_id, language="ko"
+                    )
+                    slides_path = str(output_dir / "slides.pdf")
+                    await notebooklm_service.download_slides(notebook_id, slides_path, output_format="pdf")
+                    await self._update_status(job_id, "generating_slides", slidesPath=slides_path)
+
+                # Done
+                await self._update_status(job_id, "complete", statusMessage="완료")
+                logger.info(f"Job {job_id} completed successfully")
+
+            except Exception as e:
+                logger.error(f"Job {job_id} failed: {e}", exc_info=True)
+                await self._update_status(
+                    job_id, "error",
+                    errorMessage=str(e),
+                    statusMessage=f"오류 발생: {str(e)[:200]}"
+                )
+
+
+# Singleton
+job_processor = JobProcessor()
