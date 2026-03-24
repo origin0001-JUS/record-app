@@ -84,6 +84,7 @@ export default function UploadPage() {
       router.push(`/jobs/${job.id}`);
     } catch (error) {
       console.error("Submit error:", error);
+      setFileError("처리 시작에 실패했습니다. 다시 시도해주세요.");
       setIsSubmitting(false);
     }
   };

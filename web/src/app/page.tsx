@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JOB_STATUS_LABELS, type JobStatus } from "@/types";
+import { WorkerStatus } from "@/components/WorkerStatus";
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "complete") return "default";
@@ -33,6 +34,8 @@ export default async function DashboardPage() {
           <Button>새 회의록 처리</Button>
         </Link>
       </div>
+
+      <WorkerStatus />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>

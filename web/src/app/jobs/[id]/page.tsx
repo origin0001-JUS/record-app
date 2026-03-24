@@ -128,9 +128,17 @@ export default function JobDetailPage() {
             {job.summaryText && (
               <div className="space-y-2">
                 <h3 className="font-medium text-sm">요약</h3>
-                <div className="p-4 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap">
-                  {job.summaryText}
-                </div>
+                <div
+                  className="p-4 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{
+                    __html: job.summaryText
+                      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                      .replace(/^\* /gm, "• ")
+                      .replace(/^### (.*)/gm, '<h4 class="font-semibold mt-3 mb-1">$1</h4>')
+                      .replace(/^## (.*)/gm, '<h3 class="font-bold mt-4 mb-2">$1</h3>')
+                      .replace(/\n/g, "<br/>"),
+                  }}
+                />
                 <a
                   href={`/api/jobs/${job.id}/download/summary`}
                   download
