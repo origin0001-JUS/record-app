@@ -1,0 +1,32 @@
+services:
+  # Next.js Web App
+  - type: web
+    name: record-app-web
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: web
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: node .next/standalone/server.js
+    envVars:
+      - key: WORKER_URL
+        sync: false # Set manually after worker deploys
+      - key: NODE_ENV
+        value: production
+
+  # Python FastAPI Worker
+  - type: web
+    name: record-app-worker
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: worker
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MAX_CONCURRENT_JOBS
+        value: "2"
+      - key: NOTEBOOKLM_AUTH_JSON
+        sync: false # Set manually with storage_state.json content
+      - key: PYTHON_VERSION
+        value: "3.11.11"

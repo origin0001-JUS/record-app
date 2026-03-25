@@ -1,8 +1,16 @@
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import path from "path";
+import { existsSync, mkdirSync } from "fs";
 
-const dbPath = path.resolve(process.cwd(), "..", "data", "app.db");
+const dbPath = process.env.DB_PATH
+  || path.resolve(process.cwd(), "..", "data", "app.db");
+
+// Ensure directory exists
+const dbDir = path.dirname(dbPath);
+if (!existsSync(dbDir)) {
+  mkdirSync(dbDir, { recursive: true });
+}
 
 function createPrismaClient() {
   const adapter = new PrismaBetterSqlite3({

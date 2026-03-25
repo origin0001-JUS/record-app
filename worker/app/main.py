@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -32,9 +33,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+allowed_origins = [
+    "http://localhost:3000",
+]
+# Add Render domain if set
+web_url = os.getenv("WEB_URL")
+if web_url:
+    allowed_origins.append(web_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
