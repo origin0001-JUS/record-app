@@ -40,6 +40,10 @@ COPY --from=base /app/src/generated ./src/generated
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
+ENV DB_PATH=/app/data/app.db
+
+# Create data directory
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 CMD ["node", "server.js"]
