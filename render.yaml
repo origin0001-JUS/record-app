@@ -6,11 +6,11 @@ services:
     region: singapore
     plan: free
     rootDir: web
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: node .next/standalone/server.js
+    buildCommand: apt-get update && apt-get install -y python3 make g++ && npm install && npx prisma generate && npm run build
+    startCommand: node server.js
     envVars:
       - key: WORKER_URL
-        sync: false # Set manually after worker deploys
+        sync: false
       - key: NODE_ENV
         value: production
 
@@ -27,6 +27,6 @@ services:
       - key: MAX_CONCURRENT_JOBS
         value: "2"
       - key: NOTEBOOKLM_AUTH_JSON
-        sync: false # Set manually with storage_state.json content
+        sync: false
       - key: PYTHON_VERSION
         value: "3.11.11"
