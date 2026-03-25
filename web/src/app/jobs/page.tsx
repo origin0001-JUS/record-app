@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JOB_STATUS_LABELS, type JobStatus, MEETING_TYPE_LABELS, type MeetingType } from "@/types";
+import { WORKER_URL } from "@/lib/constants";
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "complete") return "default";
@@ -15,10 +15,22 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
-  const jobs = await prisma.job.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { preset: true },
-  });
+  let jobs: Array<{
+    id: string;
+    originalFileName: string;
+    status: string;
+    statusMessage: string | null;
+    createdAt: string;
+    preset?: { name: string; meetingType: string };
+  }> = [];
+
+  try {
+    const res = await fetch(`${WORKER_URL}/api/jobs?page=1&limit=100`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      jobs = data.jobs || [];
+    }
+  } catch {}
 
   return (
     <div className="space-y-6">

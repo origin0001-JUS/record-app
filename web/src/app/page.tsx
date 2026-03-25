@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JOB_STATUS_LABELS, type JobStatus } from "@/types";
 import { WorkerStatus } from "@/components/WorkerStatus";
+import { WORKER_URL } from "@/lib/constants";
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "complete") return "default";
@@ -15,16 +15,26 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
 
 export const dynamic = "force-dynamic";
 
+async function fetchFromWorker(path: string) {
+  try {
+    const res = await fetch(`${WORKER_URL}${path}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default async function DashboardPage() {
-  const [recentJobs, totalJobs, totalPresets] = await Promise.all([
-    prisma.job.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { preset: true },
-    }),
-    prisma.job.count(),
-    prisma.preset.count(),
+  const [presetsData, jobsData] = await Promise.all([
+    fetchFromWorker("/api/presets"),
+    fetchFromWorker("/api/jobs?page=1&limit=5"),
   ]);
+
+  const presets = presetsData || [];
+  const recentJobs = jobsData?.jobs || [];
+  const totalJobs = jobsData?.total || 0;
+  const totalPresets = presets.length;
 
   return (
     <div className="space-y-6">
@@ -60,7 +70,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">
-              {recentJobs.filter((j) => j.status === "complete").length}
+              {recentJobs.filter((j: { status: string }) => j.status === "complete").length}
             </p>
           </CardContent>
         </Card>
@@ -80,7 +90,7 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <div className="space-y-3">
-              {recentJobs.map((job) => (
+              {recentJobs.map((job: { id: string; originalFileName: string; status: string; createdAt: string; preset?: { name: string } }) => (
                 <Link
                   key={job.id}
                   href={`/jobs/${job.id}`}
