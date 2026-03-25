@@ -1,13 +1,12 @@
 services:
-  # Next.js Web App
+  # Next.js Web App (Docker)
   - type: web
     name: record-app-web
-    runtime: node
+    runtime: docker
     region: singapore
     plan: free
     rootDir: web
-    buildCommand: apt-get update && apt-get install -y python3 make g++ && npm install && npx prisma generate && npm run build
-    startCommand: node server.js
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: WORKER_URL
         sync: false
