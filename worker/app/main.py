@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
+    from app.db.database import engine
+    from app.db.models import Base
+
+    # Auto-create tables if they don't exist (for fresh deployments)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables ensured")
+
     job_processor.semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
     await job_processor.recover_interrupted_jobs()
     logger.info(f"Worker started (max concurrent jobs: {MAX_CONCURRENT_JOBS})")
