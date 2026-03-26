@@ -105,7 +105,7 @@ class JobProcessor:
                 if "summary" in output_formats:
                     await self._update_status(job_id, "generating_summary", statusMessage="요약 생성 중...")
                     summary = await notebooklm_service.generate_summary(notebook_id, prompt_template)
-                    summary_path = output_dir / "summary.md"
+                    summary_path = output_dir / "summary.txt"
                     summary_path.write_text(summary, encoding="utf-8")
                     await self._update_status(job_id, "generating_summary", summaryText=summary)
 
@@ -119,19 +119,15 @@ class JobProcessor:
                     await notebooklm_service.download_report(notebook_id, report_path)
                     await self._update_status(job_id, "generating_report", reportPath=report_path)
 
-                # Step 5: Generate slides (notebooklm-py v0.3.4 API)
-                if "slides" in output_formats:
-                    await self._update_status(job_id, "generating_slides", statusMessage="슬라이드 생성 중...")
-                    await notebooklm_service.generate_slides(
-                        notebook_id, language="ko"
-                    )
-                    slides_path = str(output_dir / "slides.pdf")
-                    await notebooklm_service.download_slides(notebook_id, slides_path, output_format="pdf")
-                    await self._update_status(job_id, "generating_slides", slidesPath=slides_path)
+                # Done (summary + report complete)
+                await self._update_status(job_id, "complete", statusMessage="요약/보고서 완료")
+                logger.info(f"Job {job_id} summary/report completed")
 
-                # Done
-                await self._update_status(job_id, "complete", statusMessage="완료")
-                logger.info(f"Job {job_id} completed successfully")
+                # Step 5: Generate slides asynchronously (doesn't block completion)
+                if "slides" in output_formats:
+                    asyncio.create_task(self._generate_slides_async(
+                        job_id, notebook_id, output_dir
+                    ))
 
             except Exception as e:
                 logger.error(f"Job {job_id} failed: {e}", exc_info=True)
@@ -140,6 +136,20 @@ class JobProcessor:
                     errorMessage=str(e),
                     statusMessage=f"오류 발생: {str(e)[:200]}"
                 )
+
+
+    async def _generate_slides_async(self, job_id: str, notebook_id: str, output_dir: Path):
+        """Generate slides in background. Job is already 'complete' for summary/report."""
+        try:
+            await self._update_status(job_id, "complete", statusMessage="슬라이드 생성 중 (백그라운드)...")
+            await notebooklm_service.generate_slides(notebook_id, language="ko")
+            slides_path = str(output_dir / "slides.pdf")
+            await notebooklm_service.download_slides(notebook_id, slides_path, output_format="pdf")
+            await self._update_status(job_id, "complete", slidesPath=slides_path, statusMessage="전체 완료")
+            logger.info(f"Job {job_id} slides completed (background)")
+        except Exception as e:
+            logger.error(f"Job {job_id} slides failed (background): {e}")
+            await self._update_status(job_id, "complete", statusMessage=f"슬라이드 생성 실패: {str(e)[:100]}")
 
 
 # Singleton

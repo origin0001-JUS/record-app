@@ -144,7 +144,7 @@ export default function JobDetailPage() {
                   download
                   className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-7 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  요약 다운로드 (.md)
+                  요약 다운로드 (.txt)
                 </a>
               </div>
             )}
@@ -162,15 +162,19 @@ export default function JobDetailPage() {
                   보고서 다운로드
                 </a>
               )}
-              {job.slidesPath && (
+              {job.slidesPath ? (
                 <a
                   href={`/api/jobs/${job.id}/download/slides`}
                   download
                   className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors"
                 >
-                  슬라이드 다운로드
+                  슬라이드 다운로드 (.pdf)
                 </a>
-              )}
+              ) : outputFormats.includes("slides") ? (
+                <span className="inline-flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 px-2.5 h-8 text-sm text-muted-foreground">
+                  슬라이드 생성 중...
+                </span>
+              ) : null}
             </div>
           </CardContent>
         </Card>

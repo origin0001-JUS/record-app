@@ -146,13 +146,15 @@ async def download_job_file(job_id: str, file_type: str):
     output_dir = OUTPUTS_PATH / job_id
 
     if file_type == "summary":
-        path = output_dir / "summary.md"
-        media_type = "text/markdown; charset=utf-8"
-        filename = f"{job.originalFileName}-요약.md"
+        path = output_dir / "summary.txt"
+        if not path.exists():
+            path = output_dir / "summary.md"  # fallback
+        media_type = "text/plain; charset=utf-8"
+        filename = f"{job.originalFileName}-요약.txt"
     elif file_type == "report":
         path = Path(job.reportPath) if job.reportPath else output_dir / "report.md"
-        media_type = "text/markdown; charset=utf-8"
-        filename = f"{job.originalFileName}-보고서.md"
+        media_type = "text/plain; charset=utf-8"
+        filename = f"{job.originalFileName}-보고서.txt"
     elif file_type == "slides":
         path = Path(job.slidesPath) if job.slidesPath else output_dir / "slides.pdf"
         media_type = "application/pdf"
