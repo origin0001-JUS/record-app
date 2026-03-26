@@ -117,8 +117,8 @@ export default function JobDetailPage() {
         </Card>
       )}
 
-      {/* Results */}
-      {job.status === "complete" && (
+      {/* Results (show even on error if partial results exist) */}
+      {(job.status === "complete" || job.summaryText || job.reportPath || job.slidesPath) && (
         <Card>
           <CardHeader>
             <CardTitle>결과</CardTitle>

@@ -91,7 +91,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {recentJobs.map((job: { id: string; originalFileName: string; status: string; createdAt: string; preset?: { name: string } }) => (
-                <Link
+                <a
                   key={job.id}
                   href={`/jobs/${job.id}`}
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors"
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
                   <Badge variant={statusVariant(job.status)}>
                     {JOB_STATUS_LABELS[job.status as JobStatus] || job.status}
                   </Badge>
-                </Link>
+                </a>
               ))}
             </div>
           )}

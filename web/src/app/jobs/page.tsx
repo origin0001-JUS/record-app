@@ -50,7 +50,7 @@ export default async function JobsPage() {
       ) : (
         <div className="space-y-3">
           {jobs.map((job) => (
-            <Link key={job.id} href={`/jobs/${job.id}`}>
+            <a key={job.id} href={`/jobs/${job.id}`} className="block">
               <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
                 <CardContent className="flex items-center justify-between py-4">
                   <div className="flex flex-col gap-1">
@@ -69,7 +69,7 @@ export default async function JobsPage() {
                   </Badge>
                 </CardContent>
               </Card>
-            </Link>
+            </a>
           ))}
         </div>
       )}
