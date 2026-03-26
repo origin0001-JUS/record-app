@@ -82,7 +82,7 @@ class NotebookLMService:
                 )
             result = await _retry(_ask)
             logger.info(f"Generated summary for notebook {notebook_id}")
-            return result.text if hasattr(result, 'text') else str(result)
+            return result.answer if hasattr(result, 'answer') else str(result)
 
     async def generate_report(self, notebook_id: str, report_format: str = "briefing_doc", language: str = "ko", custom_prompt: str | None = None) -> str:
         """Generate report and wait for completion. Returns task_id."""
