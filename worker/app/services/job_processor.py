@@ -79,7 +79,9 @@ class JobProcessor:
                 output_dir.mkdir(parents=True, exist_ok=True)
 
                 output_formats = json.loads(preset_config.get("outputFormats", '["summary"]'))
+                today = datetime.now().strftime("%Y년 %m월 %d일")
                 prompt_template = preset_config.get("promptTemplate", "이 회의 내용을 요약해주세요.")
+                prompt_template = f"[오늘 날짜: {today}] 모든 날짜 참조는 현재 기준({today})으로 작성하십시오.\n\n{prompt_template}"
                 report_template = preset_config.get("reportTemplate", "briefing")
                 slide_format = preset_config.get("slideFormat", "detailed")
                 meeting_type = preset_config.get("meetingType", "custom")

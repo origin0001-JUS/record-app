@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Preset, OutputFormat } from "@/types";
-import { MEETING_TYPE_LABELS, OUTPUT_FORMAT_LABELS, type MeetingType } from "@/types";
+import { MEETING_TYPE_LABELS, MEETING_TYPE_DESCRIPTIONS, OUTPUT_FORMAT_LABELS, type MeetingType } from "@/types";
 import { ACCEPTED_EXTENSIONS, MAX_FILE_SIZE } from "@/lib/constants";
 
 export default function UploadPage() {
@@ -176,7 +176,7 @@ export default function UploadPage() {
                     <div>
                       <p className="font-medium">{preset.name}</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {MEETING_TYPE_LABELS[preset.meetingType as MeetingType] || preset.meetingType}
+                        {MEETING_TYPE_DESCRIPTIONS[preset.meetingType as MeetingType] || MEETING_TYPE_LABELS[preset.meetingType as MeetingType] || preset.meetingType}
                       </p>
                     </div>
                     <div className="flex gap-1">
