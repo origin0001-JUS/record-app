@@ -98,7 +98,7 @@ class NotebookLMService:
             result = await client.artifacts.wait_for_completion(
                 notebook_id=notebook_id,
                 task_id=status.task_id if hasattr(status, 'task_id') else str(status),
-                timeout=300.0,
+                timeout=600.0,
             )
             logger.info(f"Generated report for notebook {notebook_id}")
             return result.artifact_id if hasattr(result, 'artifact_id') else str(result)
@@ -123,7 +123,7 @@ class NotebookLMService:
             result = await client.artifacts.wait_for_completion(
                 notebook_id=notebook_id,
                 task_id=status.task_id if hasattr(status, 'task_id') else str(status),
-                timeout=300.0,
+                timeout=600.0,
             )
             logger.info(f"Generated slides for notebook {notebook_id}")
             return result.artifact_id if hasattr(result, 'artifact_id') else str(result)
