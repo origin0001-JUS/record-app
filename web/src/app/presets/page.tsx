@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import type { Preset, MeetingType, OutputFormat } from "@/types";
 import { MEETING_TYPE_LABELS, OUTPUT_FORMAT_LABELS } from "@/types";
+import { authFetch } from "@/lib/api";
 
 const MEETING_TYPES: MeetingType[] = ["weekly", "brainstorming", "client", "reporting", "custom"];
 const OUTPUT_FORMATS: OutputFormat[] = ["summary", "report", "slides"];
@@ -124,7 +125,7 @@ export default function PresetsPage() {
   const [showCreate, setShowCreate] = useState(false);
 
   const fetchPresets = () => {
-    fetch("/api/presets")
+    authFetch("/api/presets")
       .then((res) => res.json())
       .then(setPresets);
   };
@@ -134,7 +135,7 @@ export default function PresetsPage() {
   }, []);
 
   const handleCreate = async (data: Record<string, unknown>) => {
-    await fetch("/api/presets", {
+    await authFetch("/api/presets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -144,7 +145,7 @@ export default function PresetsPage() {
   };
 
   const handleUpdate = async (id: string, data: Record<string, unknown>) => {
-    await fetch(`/api/presets/${id}`, {
+    await authFetch(`/api/presets/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -155,7 +156,7 @@ export default function PresetsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("이 프리셋을 삭제하시겠습니까?")) return;
-    await fetch(`/api/presets/${id}`, { method: "DELETE" });
+    await authFetch(`/api/presets/${id}`, { method: "DELETE" });
     fetchPresets();
   };
 

@@ -105,7 +105,7 @@ async def create_job(body: dict):
 
         job = Job(
             id=str(uuid4()),
-            userId="dev-user",
+            userId=body.get("userId", "dev-user"),
             presetId=preset_id,
             originalFileName=file_name,
             uploadedFilePath=file_path,

@@ -1,10 +1,16 @@
 import { NextRequest } from "next/server";
 import { workerFetch } from "@/lib/api";
+import { verifyAuth, unauthorized } from "@/lib/auth-middleware";
+
+export const runtime = "nodejs";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string; type: string }> }
 ) {
+  const auth = await verifyAuth(request);
+  if (!auth) return unauthorized();
+
   const { id, type } = await params;
   const res = await workerFetch(`/api/jobs/${id}/download/${type}`);
 

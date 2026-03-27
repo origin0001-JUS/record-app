@@ -1,9 +1,12 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JOB_STATUS_LABELS, type JobStatus, MEETING_TYPE_LABELS, type MeetingType } from "@/types";
-import { WORKER_URL } from "@/lib/constants";
+import { authFetch } from "@/lib/api";
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "complete") return "default";
@@ -12,25 +15,23 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   return "secondary";
 }
 
-export const dynamic = "force-dynamic";
+interface JobItem {
+  id: string;
+  originalFileName: string;
+  status: string;
+  statusMessage: string | null;
+  createdAt: string;
+  preset?: { name: string; meetingType: string };
+}
 
-export default async function JobsPage() {
-  let jobs: Array<{
-    id: string;
-    originalFileName: string;
-    status: string;
-    statusMessage: string | null;
-    createdAt: string;
-    preset?: { name: string; meetingType: string };
-  }> = [];
+export default function JobsPage() {
+  const [jobs, setJobs] = useState<JobItem[]>([]);
 
-  try {
-    const res = await fetch(`${WORKER_URL}/api/jobs?page=1&limit=100`, { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      jobs = data.jobs || [];
-    }
-  } catch {}
+  useEffect(() => {
+    authFetch("/api/jobs?page=1&limit=100")
+      .then((r) => (r.ok ? r.json() : { jobs: [] }))
+      .then((data) => setJobs(data.jobs || []));
+  }, []);
 
   return (
     <div className="space-y-6">

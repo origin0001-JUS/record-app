@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Preset, OutputFormat } from "@/types";
 import { MEETING_TYPE_LABELS, MEETING_TYPE_DESCRIPTIONS, OUTPUT_FORMAT_LABELS, type MeetingType } from "@/types";
 import { ACCEPTED_EXTENSIONS, MAX_FILE_SIZE } from "@/lib/constants";
+import { authFetch } from "@/lib/api";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function UploadPage() {
   const [fileError, setFileError] = useState<string>("");
 
   useEffect(() => {
-    fetch("/api/presets")
+    authFetch("/api/presets")
       .then((res) => res.json())
       .then(setPresets);
   }, []);
@@ -64,11 +65,11 @@ export default function UploadPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("jobId", jobId);
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const uploadRes = await authFetch("/api/upload", { method: "POST", body: formData });
       const { filePath, fileName } = await uploadRes.json();
 
       // Step 2: Create job
-      const jobRes = await fetch("/api/jobs", {
+      const jobRes = await authFetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

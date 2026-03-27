@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import type { Job, JobStatus, OutputFormat } from "@/types";
 import { JOB_STATUS_LABELS, OUTPUT_FORMAT_LABELS } from "@/types";
+import { authFetch } from "@/lib/api";
 
 const STATUS_STEPS: JobStatus[] = [
   "pending",
@@ -40,11 +41,23 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const handleDownload = useCallback(async (type: string, filename: string) => {
+    const res = await authFetch(`/api/jobs/${id}/download/${type}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [id]);
+
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
 
     const fetchJob = async () => {
-      const res = await fetch(`/api/jobs/${id}`);
+      const res = await authFetch(`/api/jobs/${id}`);
       const data = await res.json();
       setJob(data);
       setLoading(false);
@@ -139,13 +152,12 @@ export default function JobDetailPage() {
                       .replace(/\n/g, "<br/>"),
                   }}
                 />
-                <a
-                  href={`/api/jobs/${job.id}/download/summary`}
-                  download
+                <button
+                  onClick={() => handleDownload("summary", `${job.originalFileName}-요약.txt`)}
                   className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-7 text-[0.8rem] font-medium hover:bg-muted hover:text-foreground transition-colors"
                 >
                   요약 다운로드 (.txt)
-                </a>
+                </button>
               </div>
             )}
 
@@ -154,22 +166,20 @@ export default function JobDetailPage() {
             {/* Downloads */}
             <div className="flex gap-3">
               {job.reportPath && (
-                <a
-                  href={`/api/jobs/${job.id}/download/report`}
-                  download
+                <button
+                  onClick={() => handleDownload("report", `${job.originalFileName}-보고서.txt`)}
                   className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors"
                 >
                   보고서 다운로드
-                </a>
+                </button>
               )}
               {job.slidesPath ? (
-                <a
-                  href={`/api/jobs/${job.id}/download/slides`}
-                  download
+                <button
+                  onClick={() => handleDownload("slides", `${job.originalFileName}-슬라이드.pdf`)}
                   className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors"
                 >
                   슬라이드 다운로드 (.pdf)
-                </a>
+                </button>
               ) : outputFormats.includes("slides") ? (
                 <span className="inline-flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 px-2.5 h-8 text-sm text-muted-foreground">
                   슬라이드 생성 중...

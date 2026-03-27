@@ -1,10 +1,13 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { JOB_STATUS_LABELS, type JobStatus } from "@/types";
 import { WorkerStatus } from "@/components/WorkerStatus";
-import { WORKER_URL } from "@/lib/constants";
+import { authFetch } from "@/lib/api";
 
 function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   if (status === "complete") return "default";
@@ -13,28 +16,29 @@ function statusVariant(status: string): "default" | "secondary" | "destructive" 
   return "secondary";
 }
 
-export const dynamic = "force-dynamic";
-
-async function fetchFromWorker(path: string) {
-  try {
-    const res = await fetch(`${WORKER_URL}${path}`, { cache: "no-store" });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
+interface JobSummary {
+  id: string;
+  originalFileName: string;
+  status: string;
+  createdAt: string;
+  preset?: { name: string };
 }
 
-export default async function DashboardPage() {
-  const [presetsData, jobsData] = await Promise.all([
-    fetchFromWorker("/api/presets"),
-    fetchFromWorker("/api/jobs?page=1&limit=5"),
-  ]);
+export default function DashboardPage() {
+  const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [totalPresets, setTotalPresets] = useState(0);
 
-  const presets = presetsData || [];
-  const recentJobs = jobsData?.jobs || [];
-  const totalJobs = jobsData?.total || 0;
-  const totalPresets = presets.length;
+  useEffect(() => {
+    Promise.all([
+      authFetch("/api/presets").then((r) => r.ok ? r.json() : []),
+      authFetch("/api/jobs?page=1&limit=5").then((r) => r.ok ? r.json() : null),
+    ]).then(([presets, jobsData]) => {
+      setTotalPresets(Array.isArray(presets) ? presets.length : 0);
+      setRecentJobs(jobsData?.jobs || []);
+      setTotalJobs(jobsData?.total || 0);
+    });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -70,7 +74,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">
-              {recentJobs.filter((j: { status: string }) => j.status === "complete").length}
+              {recentJobs.filter((j) => j.status === "complete").length}
             </p>
           </CardContent>
         </Card>
@@ -90,7 +94,7 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <div className="space-y-3">
-              {recentJobs.map((job: { id: string; originalFileName: string; status: string; createdAt: string; preset?: { name: string } }) => (
+              {recentJobs.map((job) => (
                 <a
                   key={job.id}
                   href={`/jobs/${job.id}`}

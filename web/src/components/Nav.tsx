@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 const links = [
   { href: "/", label: "대시보드" },
@@ -12,6 +13,7 @@ const links = [
 
 export function Nav() {
   const pathname = usePathname();
+  const { profile, signOut } = useAuth();
 
   return (
     <header className="border-b bg-background">
@@ -34,6 +36,17 @@ export function Nav() {
             </Link>
           ))}
         </nav>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {profile?.email}
+          </span>
+          <button
+            onClick={signOut}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
     </header>
   );

@@ -1,10 +1,16 @@
 import { NextRequest } from "next/server";
 import { workerFetch } from "@/lib/api";
+import { verifyAuth, unauthorized } from "@/lib/auth-middleware";
+
+export const runtime = "nodejs";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await verifyAuth(request);
+  if (!auth) return unauthorized();
+
   const { id } = await params;
   const res = await workerFetch(`/api/presets/${id}`);
   const data = await res.json();
@@ -15,6 +21,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await verifyAuth(request);
+  if (!auth) return unauthorized();
+
   const { id } = await params;
   const body = await request.text();
   const res = await workerFetch(`/api/presets/${id}`, {
@@ -27,9 +36,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await verifyAuth(request);
+  if (!auth) return unauthorized();
+
   const { id } = await params;
   const res = await workerFetch(`/api/presets/${id}`, { method: "DELETE" });
   const data = await res.json();
