@@ -9,6 +9,7 @@ const links = [
   { href: "/upload", label: "새 회의록" },
   { href: "/jobs", label: "작업 목록" },
   { href: "/presets", label: "프리셋 관리" },
+  { href: "/templates", label: "디자인 템플릿" },
 ];
 
 export function Nav() {
