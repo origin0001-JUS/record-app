@@ -14,21 +14,25 @@
 - **From**: Claude Code (텔레그램 세션)
 - **When**: 2026-04-01
 - **Branch**: `master`
-- **최신 커밋**: `1a19d52`
+- **최신 커밋**: (최신)
 
 ### 이번 세션에서 완료한 것
 - [x] GitHub 레포 클론 및 프로젝트 초기 셋업
 - [x] Vercel GitHub 자동 배포 연결 (origin0001-JUS/record-app → web 프로젝트, root: web/)
 - [x] 보고서 전용 디자인 템플릿 38개 추가 (/templates 페이지)
-- [x] 프리셋 8개 카테고리 체계로 재구성 (regular/strategy/external/tech/seminar/brainstorming/project/general)
-- [x] Worker 시드 로직 추가 (seed_presets.py, 기본 8개 프리셋 자동 생성)
+- [x] 프리셋 8개 카테고리 체계로 재구성
+- [x] Worker 시드 로직 추가 (seed_presets.py)
 - [x] HANDOFF.md, CLAUDE.md, docs/build-logs/ 생성
 - [x] 글로벌 ~/.claude/CLAUDE.md 텔레그램 적응 워크플로우 설정
+- [x] **업로드 플로우에 템플릿 선택 단계 통합** (파일→프리셋→템플릿→확인)
+- [x] Worker에 templateConfig 전달 파이프라인 구축 (DB→API→JobProcessor→슬라이드 생성)
+- [x] 템플릿 데이터 공유 모듈 분리 (web/src/lib/report-templates.ts)
 
 ### 블로커 / 주의사항
-- Vercel CLI 인증: 토큰 방식 사용 중 (vcp_0ALi... — 만료 시 재발급 필요)
+- Vercel CLI 인증: 토큰 방식 사용 중 (만료 시 재발급 필요)
 - Worker(GCP VM)가 새 프리셋 시드를 반영하려면 Worker 재시작 필요
-- 기존 DB에 이미 프리셋이 있으면 시드가 건너뜀 (count > 0 체크) — 기존 프리셋 삭제 후 재시작하면 새 8개 시드 적용
+- 기존 DB에 이미 프리셋이 있으면 시드가 건너뜀 — 기존 프리셋 삭제 후 재시작하면 새 8개 시드 적용
+- Worker DB에 templateConfig 컬럼 추가됨 — SQLAlchemy create_all이 자동 처리하지만, 기존 DB는 ALTER TABLE 필요할 수 있음
 
 ### 다음 에이전트의 할 일
 1. `git pull` 실행

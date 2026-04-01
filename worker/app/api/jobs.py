@@ -103,6 +103,8 @@ async def create_job(body: dict):
         if not preset:
             raise HTTPException(status_code=400, detail="프리셋을 찾을 수 없습니다")
 
+        template_config = body.get("templateConfig")
+
         job = Job(
             id=str(uuid4()),
             userId=body.get("userId", "dev-user"),
@@ -110,6 +112,7 @@ async def create_job(body: dict):
             originalFileName=file_name,
             uploadedFilePath=file_path,
             fileType=file_type,
+            templateConfig=json.dumps(template_config) if template_config else None,
             status="pending",
             createdAt=datetime.now(timezone.utc),
             updatedAt=datetime.now(timezone.utc),
@@ -129,6 +132,7 @@ async def create_job(body: dict):
                 "reportTemplate": preset.reportTemplate,
                 "slideFormat": preset.slideFormat,
                 "meetingType": preset.meetingType,
+                "templateConfig": template_config,
             },
         )
 

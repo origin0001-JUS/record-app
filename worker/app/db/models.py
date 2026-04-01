@@ -52,6 +52,7 @@ class Job(Base):
     summaryText = Column(Text, nullable=True)
     reportPath = Column(String, nullable=True)
     slidesPath = Column(String, nullable=True)
+    templateConfig = Column(Text, nullable=True)  # JSON: slide design template settings
 
     errorMessage = Column(Text, nullable=True)
     createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))

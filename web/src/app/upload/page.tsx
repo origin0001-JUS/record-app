@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +9,31 @@ import type { Preset, OutputFormat } from "@/types";
 import { MEETING_TYPE_LABELS, MEETING_TYPE_DESCRIPTIONS, OUTPUT_FORMAT_LABELS, type MeetingType } from "@/types";
 import { ACCEPTED_EXTENSIONS, MAX_FILE_SIZE } from "@/lib/constants";
 import { authFetch } from "@/lib/api";
+import { REPORT_TEMPLATES, type ReportTemplate } from "@/lib/report-templates";
+
+const MEETING_TYPE_TO_CATEGORY: Record<string, string | null> = {
+  regular: "정기회의",
+  strategy: "전략/의사결정",
+  external: "외부/협력",
+  tech: "기술/개발",
+  seminar: "강연/세미나",
+  brainstorming: "브레인스토밍",
+  project: "프로젝트 관리",
+  general: null, // show all
+};
+
+const OUTPUT_TYPE_LABELS: Record<string, string> = {
+  summary: "요약",
+  report: "보고서",
+  slides: "슬라이드",
+};
 
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string>("");
@@ -24,6 +43,11 @@ export default function UploadPage() {
       .then((res) => res.json())
       .then(setPresets);
   }, []);
+
+  // Reset template when preset changes
+  useEffect(() => {
+    setSelectedTemplate(null);
+  }, [selectedPresetId]);
 
   const validateAndSetFile = (f: File) => {
     setFileError("");
@@ -77,6 +101,13 @@ export default function UploadPage() {
           filePath,
           fileName,
           fileType: detectFileType(file),
+          templateConfig: selectedTemplate ? {
+            id: selectedTemplate.id,
+            name: selectedTemplate.name,
+            style: selectedTemplate.style,
+            description: selectedTemplate.description,
+            layoutGuide: selectedTemplate.layoutGuide,
+          } : null,
         }),
       });
       const job = await jobRes.json();
@@ -94,6 +125,14 @@ export default function UploadPage() {
   const selectedFormats: OutputFormat[] = selectedPreset
     ? JSON.parse(selectedPreset.outputFormats)
     : [];
+
+  const filteredTemplates = useMemo(() => {
+    if (!selectedPreset) return [];
+    const category = MEETING_TYPE_TO_CATEGORY[selectedPreset.meetingType as string];
+    if (category === null) return REPORT_TEMPLATES; // general → show all
+    if (category === undefined) return REPORT_TEMPLATES; // unknown → show all
+    return REPORT_TEMPLATES.filter((t) => t.category === category);
+  }, [selectedPreset]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -195,11 +234,78 @@ export default function UploadPage() {
         </CardContent>
       </Card>
 
-      {/* Step 3: Confirm */}
+      {/* Step 3: Template Selection */}
+      {selectedPreset && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">3. 디자인 템플릿 선택</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3">
+              {/* No template option */}
+              <button
+                onClick={() => setSelectedTemplate(null)}
+                className={`text-left p-4 rounded-lg border-2 transition-colors ${
+                  selectedTemplate === null
+                    ? "border-primary bg-primary/5"
+                    : "border-transparent bg-muted/50 hover:bg-muted"
+                }`}
+              >
+                <p className="font-medium">선택 안 함</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  기본 스타일로 보고서를 생성합니다
+                </p>
+              </button>
+
+              {filteredTemplates.map((template) => {
+                const isSelected = selectedTemplate?.id === template.id;
+                return (
+                  <button
+                    key={template.id}
+                    onClick={() => setSelectedTemplate(template)}
+                    className={`text-left rounded-lg border-2 transition-colors overflow-hidden ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-transparent bg-muted/50 hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex">
+                      {/* Color accent bar */}
+                      <div
+                        className="w-1.5 shrink-0"
+                        style={{ backgroundColor: template.style.accent }}
+                      />
+                      <div className="p-4 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{template.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {template.description}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            {template.outputType.map((t) => (
+                              <Badge key={t} variant="outline" className="text-xs">
+                                {OUTPUT_TYPE_LABELS[t] || t}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 4: Confirm */}
       {file && selectedPreset && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">3. 확인 및 시작</CardTitle>
+            <CardTitle className="text-base">4. 확인 및 시작</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-sm space-y-1">
@@ -208,6 +314,10 @@ export default function UploadPage() {
               </p>
               <p>
                 <span className="text-muted-foreground">프리셋:</span> {selectedPreset.name}
+              </p>
+              <p>
+                <span className="text-muted-foreground">템플릿:</span>{" "}
+                {selectedTemplate ? selectedTemplate.name : "기본 스타일"}
               </p>
               <p>
                 <span className="text-muted-foreground">생성할 산출물:</span>{" "}
