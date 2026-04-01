@@ -23,7 +23,7 @@ import type { Preset, MeetingType, OutputFormat } from "@/types";
 import { MEETING_TYPE_LABELS, OUTPUT_FORMAT_LABELS } from "@/types";
 import { authFetch } from "@/lib/api";
 
-const MEETING_TYPES: MeetingType[] = ["weekly", "brainstorming", "client", "reporting", "custom"];
+const MEETING_TYPES: MeetingType[] = ["regular", "strategy", "external", "tech", "seminar", "brainstorming", "project", "general"];
 const OUTPUT_FORMATS: OutputFormat[] = ["summary", "report", "slides"];
 
 function PresetForm({
@@ -36,7 +36,7 @@ function PresetForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name || "");
-  const [meetingType, setMeetingType] = useState<string>(initial?.meetingType || "weekly");
+  const [meetingType, setMeetingType] = useState<string>(initial?.meetingType || "regular");
   const [formats, setFormats] = useState<OutputFormat[]>(
     initial ? JSON.parse(initial.outputFormats) : ["summary"]
   );

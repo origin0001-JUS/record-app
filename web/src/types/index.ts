@@ -31,7 +31,16 @@ export interface Job {
   preset?: Preset;
 }
 
-export type MeetingType = "weekly" | "brainstorming" | "client" | "reporting" | "custom";
+export type MeetingType =
+  | "regular"
+  | "strategy"
+  | "external"
+  | "tech"
+  | "seminar"
+  | "brainstorming"
+  | "project"
+  | "general";
+
 export type OutputFormat = "summary" | "report" | "slides";
 export type JobStatus =
   | "pending"
@@ -44,19 +53,25 @@ export type JobStatus =
   | "error";
 
 export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
-  weekly: "정기회의",
+  regular: "정기회의",
+  strategy: "전략/의사결정",
+  external: "외부/협력",
+  tech: "기술/개발",
+  seminar: "강연/세미나",
   brainstorming: "브레인스토밍",
-  client: "외부/협력회의",
-  reporting: "의사결정회의",
-  custom: "강연/세미나",
+  project: "프로젝트 관리",
+  general: "기타/범용",
 };
 
 export const MEETING_TYPE_DESCRIPTIONS: Record<MeetingType, string> = {
-  weekly: "주간/월간 정기회의 — 액션아이템 중심 실행 요약",
-  brainstorming: "아이디어 발산 회의 — 카테고리별 아이디어 분류",
-  client: "외부 협력/고객 미팅 — 협상 전략 및 합의사항 분석",
-  reporting: "전략/임원 회의 — 의사결정 프로세스 및 KPI 도출",
-  custom: "외부 강연/세미나 — 심층 지식 합성 및 인사이트 도출",
+  regular: "주간/월간 정기회의 — 액션아이템 중심 실행 요약",
+  strategy: "전략/임원 회의 — 의사결정 과정 문서화 및 실행 계획",
+  external: "고객/파트너 미팅 — 합의사항, 협상 전략, 후속 조치",
+  tech: "기술/아키텍처 리뷰 — 기술 결정, 트레이드오프, 구현 계획",
+  seminar: "강연/세미나/워크샵 — 인사이트 합성 및 실무 적용",
+  brainstorming: "아이디어 발산 — 카테고리별 분류 및 우선순위 평가",
+  project: "프로젝트 관리 — 진행 상황, 마일스톤, 리스크 점검",
+  general: "범용 회의록 — 핵심 논의사항 및 후속 조치 요약",
 };
 
 export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {

@@ -27,6 +27,10 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ensured")
 
+    # Seed default presets if DB is empty
+    from app.db.seed_presets import seed_default_presets
+    await seed_default_presets()
+
     job_processor.semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
     await job_processor.recover_interrupted_jobs()
     logger.info(f"Worker started (max concurrent jobs: {MAX_CONCURRENT_JOBS})")
