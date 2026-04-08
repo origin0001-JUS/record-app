@@ -17,21 +17,23 @@
 - **최신 커밋**: (최신)
 
 ### 이번 세션에서 완료한 것
-- [x] 프로젝트 상태 점검 및 TODO 소화
-- [x] Worker 실행 확인 — 8개 프리셋 정상 시드됨
-- [x] Vercel /templates 배포 확인 (200 OK)
-- [x] Worker CORS 설정 확인 — WEB_URL 환경변수로 이미 적용됨
-- [x] Job 타입에 templateConfig 필드 추가 (web/src/types/index.ts)
-- [x] Job 상세 페이지에 templateConfig 표시 (디자인 템플릿 이름 + accent 색상 칩)
-- [x] 빌드 성공 확인 (Next.js 16.2.1)
+- [x] 프로젝트 상태 점검 및 이전 세션 TODO 소화
+- [x] Worker 실행 확인, GCP 방화벽 8000 오픈, Vercel 연동 확인
+- [x] Job 타입에 templateConfig 필드 추가 + Job 상세 페이지 표시
+- [x] **QA: 업로드 UI 개선** — 프리셋/템플릿 역할 설명 추가
+- [x] **QA: 보고서 생성에 templateConfig 반영** — hardcoded → reportTemplate + custom_prompt 사용
+- [x] **QA: promptTemplate 간소화** — 마크다운 구조 지시 제거, 자연어 기반으로 변경
+- [x] **QA: Job 상세 상태 표시 개선** — 슬라이드 백그라운드 polling, 스피너, 기본 스타일 표시
+- [x] 빌드 성공 (Next.js 16.2.1, 로그: docs/build-logs/2026-04-08-qa.txt)
 
 ### 블로커 / 주의사항
 - Vercel CLI 인증: 토큰 방식 사용 중 (만료 시 재발급 필요)
-- **GCP 방화벽 포트 8000 미오픈** — Vercel에서 Worker API 접근 불가. GCP 콘솔에서 TCP 8000 인바운드 허용 규칙 추가 필요
+- promptTemplate 변경은 기존 DB도 API로 업데이트 완료됨
+- Worker 재시작 시 새 seed_presets.py 반영 (기존 프리셋 있으면 건너뜀)
 
 ### 다음 에이전트의 할 일
-1. GCP 방화벽 TCP 8000 인바운드 허용 → E2E 연동 테스트 가능
-2. E2E 테스트 — 파일 업로드 → 프리셋 → 템플릿 → Job 생성 플로우 검증
+1. E2E 테스트 — 실제 파일 업로드 → 요약/보고서/슬라이드 품질 확인
+2. 요약 내용에 여전히 이상한 말이 나오면 promptTemplate 추가 튜닝
 
 ---
 
@@ -49,7 +51,7 @@
 | 에이전트 | 상태 | 현재 작업 | 블로커 |
 |----------|------|----------|--------|
 | **Antigravity** | [대기] | — | — |
-| **Claude Code** | [작업 완료] | Job 상세 templateConfig 표시, Worker 기동 | GCP 방화벽 8000 미오픈 |
+| **Claude Code** | [작업 완료] | QA 4건 수정 (UI, 보고서, 프롬프트, 상태표시) | — |
 | **Claude Web** | [대기] | — | — |
 
 ---
