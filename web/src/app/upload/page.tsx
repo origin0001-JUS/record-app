@@ -196,6 +196,9 @@ export default function UploadPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">2. 프리셋 선택</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            회의 유형에 맞는 요약 구조와 생성할 산출물을 결정합니다
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3">
@@ -239,6 +242,9 @@ export default function UploadPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">3. 디자인 템플릿 선택</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              선택한 템플릿의 색상·레이아웃이 슬라이드와 보고서에 반영됩니다
+            </p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3">
@@ -253,7 +259,7 @@ export default function UploadPage() {
               >
                 <p className="font-medium">선택 안 함</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  기본 스타일로 보고서를 생성합니다
+                  기본 스타일로 생성합니다
                 </p>
               </button>
 
