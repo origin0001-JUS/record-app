@@ -85,6 +85,7 @@ class JobProcessor:
                 report_template = preset_config.get("reportTemplate", "briefing")
                 slide_format = preset_config.get("slideFormat", "detailed")
                 meeting_type = preset_config.get("meetingType", "custom")
+                template_config = preset_config.get("templateConfig")
 
                 # Step 1: Create notebook
                 await self._update_status(job_id, "uploading", statusMessage="노트북 생성 중...")
@@ -114,8 +115,10 @@ class JobProcessor:
                 # Step 4: Generate report (notebooklm-py v0.3.4 API)
                 if "report" in output_formats:
                     await self._update_status(job_id, "generating_report", statusMessage="보고서 생성 중...")
+                    report_custom_prompt = self._build_report_instructions(template_config)
                     await notebooklm_service.generate_report(
-                        notebook_id, report_format="briefing_doc", language="ko"
+                        notebook_id, report_format=report_template, language="ko",
+                        custom_prompt=report_custom_prompt,
                     )
                     report_path = str(output_dir / "report.md")
                     await notebooklm_service.download_report(notebook_id, report_path)
@@ -127,7 +130,6 @@ class JobProcessor:
 
                 # Step 5: Generate slides asynchronously (doesn't block completion)
                 if "slides" in output_formats:
-                    template_config = preset_config.get("templateConfig")
                     slide_instructions = self._build_slide_instructions(template_config)
                     asyncio.create_task(self._generate_slides_async(
                         job_id, notebook_id, output_dir, slide_instructions
@@ -141,6 +143,20 @@ class JobProcessor:
                     statusMessage=f"오류 발생: {str(e)[:200]}"
                 )
 
+
+    def _build_report_instructions(self, template_config: dict | None) -> str | None:
+        """Build report generation instructions from template config."""
+        if not template_config:
+            return None
+        parts = []
+        if template_config.get("description"):
+            parts.append(f"톤앤매너: {template_config['description']}")
+        if template_config.get("layoutGuide"):
+            parts.append(f"구조: {template_config['layoutGuide']}")
+        style = template_config.get("style", {})
+        if style.get("font"):
+            parts.append(f"폰트 분위기: {style['font']}")
+        return "\n".join(parts) if parts else None
 
     def _build_slide_instructions(self, template_config: dict | None) -> str | None:
         """Build slide generation instructions from template config."""
