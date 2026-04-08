@@ -22,14 +22,16 @@
 - [x] Vercel /templates 배포 확인 (200 OK)
 - [x] Worker CORS 설정 확인 — WEB_URL 환경변수로 이미 적용됨
 - [x] Job 타입에 templateConfig 필드 추가 (web/src/types/index.ts)
+- [x] Job 상세 페이지에 templateConfig 표시 (디자인 템플릿 이름 + accent 색상 칩)
 - [x] 빌드 성공 확인 (Next.js 16.2.1)
 
 ### 블로커 / 주의사항
 - Vercel CLI 인증: 토큰 방식 사용 중 (만료 시 재발급 필요)
+- **GCP 방화벽 포트 8000 미오픈** — Vercel에서 Worker API 접근 불가. GCP 콘솔에서 TCP 8000 인바운드 허용 규칙 추가 필요
 
 ### 다음 에이전트의 할 일
-1. E2E 연동 테스트 — 실제 파일 업로드 → 프리셋 선택 → 템플릿 선택 → Job 생성 플로우 검증
-2. Job 상세 페이지에서 templateConfig 정보 표시 (선택한 템플릿 이름/스타일 등)
+1. GCP 방화벽 TCP 8000 인바운드 허용 → E2E 연동 테스트 가능
+2. E2E 테스트 — 파일 업로드 → 프리셋 → 템플릿 → Job 생성 플로우 검증
 
 ---
 
@@ -47,7 +49,7 @@
 | 에이전트 | 상태 | 현재 작업 | 블로커 |
 |----------|------|----------|--------|
 | **Antigravity** | [대기] | — | — |
-| **Claude Code** | [작업 완료] | Job 타입 templateConfig 추가, TODO 소화 | — |
+| **Claude Code** | [작업 완료] | Job 상세 templateConfig 표시, Worker 기동 | GCP 방화벽 8000 미오픈 |
 | **Claude Web** | [대기] | — | — |
 
 ---

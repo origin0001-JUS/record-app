@@ -200,6 +200,22 @@ export default function JobDetailPage() {
             <span className="text-muted-foreground">프리셋</span>
             <span>{job.preset?.name}</span>
           </div>
+          {(() => {
+            const tmpl = job.templateConfig ? JSON.parse(job.templateConfig) : null;
+            if (!tmpl) return null;
+            return (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">디자인 템플릿</span>
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block w-3 h-3 rounded-sm border border-border"
+                    style={{ backgroundColor: tmpl.style?.accent }}
+                  />
+                  {tmpl.name}
+                </span>
+              </div>
+            );
+          })()}
           <div className="flex justify-between">
             <span className="text-muted-foreground">산출물</span>
             <span>{outputFormats.map((f) => OUTPUT_FORMAT_LABELS[f]).join(", ")}</span>
