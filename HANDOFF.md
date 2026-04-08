@@ -12,34 +12,24 @@
 ## 최근 핸드오프 (Latest Handoff)
 
 - **From**: Claude Code (텔레그램 세션)
-- **When**: 2026-04-01
+- **When**: 2026-04-08
 - **Branch**: `master`
 - **최신 커밋**: (최신)
 
 ### 이번 세션에서 완료한 것
-- [x] GitHub 레포 클론 및 프로젝트 초기 셋업
-- [x] Vercel GitHub 자동 배포 연결 (origin0001-JUS/record-app → web 프로젝트, root: web/)
-- [x] 보고서 전용 디자인 템플릿 38개 추가 (/templates 페이지)
-- [x] 프리셋 8개 카테고리 체계로 재구성
-- [x] Worker 시드 로직 추가 (seed_presets.py)
-- [x] HANDOFF.md, CLAUDE.md, docs/build-logs/ 생성
-- [x] 글로벌 ~/.claude/CLAUDE.md 텔레그램 적응 워크플로우 설정
-- [x] **업로드 플로우에 템플릿 선택 단계 통합** (파일→프리셋→템플릿→확인)
-- [x] Worker에 templateConfig 전달 파이프라인 구축 (DB→API→JobProcessor→슬라이드 생성)
-- [x] 템플릿 데이터 공유 모듈 분리 (web/src/lib/report-templates.ts)
+- [x] 프로젝트 상태 점검 및 TODO 소화
+- [x] Worker 실행 확인 — 8개 프리셋 정상 시드됨
+- [x] Vercel /templates 배포 확인 (200 OK)
+- [x] Worker CORS 설정 확인 — WEB_URL 환경변수로 이미 적용됨
+- [x] Job 타입에 templateConfig 필드 추가 (web/src/types/index.ts)
+- [x] 빌드 성공 확인 (Next.js 16.2.1)
 
 ### 블로커 / 주의사항
 - Vercel CLI 인증: 토큰 방식 사용 중 (만료 시 재발급 필요)
-- Worker(GCP VM)가 새 프리셋 시드를 반영하려면 Worker 재시작 필요
-- 기존 DB에 이미 프리셋이 있으면 시드가 건너뜀 — 기존 프리셋 삭제 후 재시작하면 새 8개 시드 적용
-- Worker DB에 templateConfig 컬럼 추가됨 — SQLAlchemy create_all이 자동 처리하지만, 기존 DB는 ALTER TABLE 필요할 수 있음
 
 ### 다음 에이전트의 할 일
-1. `git pull` 실행
-2. GCP VM Worker 재시작하여 새 프리셋 시드 적용
-3. Vercel 배포 확인 (https://web-beta-five-10.vercel.app/templates)
-4. Worker CORS에 Vercel 도메인 추가 (WEB_URL 환경변수)
-5. 보고서 템플릿 ↔ 프리셋 연동 기능 구현 (템플릿 선택 시 프리셋 자동 적용)
+1. E2E 연동 테스트 — 실제 파일 업로드 → 프리셋 선택 → 템플릿 선택 → Job 생성 플로우 검증
+2. Job 상세 페이지에서 templateConfig 정보 표시 (선택한 템플릿 이름/스타일 등)
 
 ---
 
@@ -57,7 +47,7 @@
 | 에이전트 | 상태 | 현재 작업 | 블로커 |
 |----------|------|----------|--------|
 | **Antigravity** | [대기] | — | — |
-| **Claude Code** | [작업 완료] | 템플릿+프리셋 재구성, Vercel 연결 | — |
+| **Claude Code** | [작업 완료] | Job 타입 templateConfig 추가, TODO 소화 | — |
 | **Claude Web** | [대기] | — | — |
 
 ---
@@ -96,7 +86,7 @@ MAX_CONCURRENT_JOBS=2
 
 ## 핸드오프 체크리스트 (매 세션 종료 시)
 
-- [x] `npm run build` 성공 확인 (로그: docs/build-logs/2026-04-01.txt)
+- [x] `npm run build` 성공 확인 (로그: docs/build-logs/2026-04-08.txt)
 - [x] 이 파일의 "최근 핸드오프" 섹션 업데이트
 - [x] "누가 뭘 하고 있나" 테이블에서 내 상태를 [작업 완료]로 변경
 - [x] **배포 확인**: master에 push → Vercel 자동 배포 트리거됨

@@ -25,6 +25,7 @@ export interface Job {
   summaryText: string | null;
   reportPath: string | null;
   slidesPath: string | null;
+  templateConfig: string | null;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
