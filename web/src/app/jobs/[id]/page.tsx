@@ -62,7 +62,10 @@ export default function JobDetailPage() {
       setJob(data);
       setLoading(false);
 
-      if (data.status === "complete" || data.status === "error") {
+      // Stop polling when truly done: error, or complete with no pending slides
+      const outputFmts = data.preset ? JSON.parse(data.preset.outputFormats) : [];
+      const slidesPending = outputFmts.includes("slides") && !data.slidesPath;
+      if (data.status === "error" || (data.status === "complete" && !slidesPending)) {
         clearInterval(interval);
       }
     };
@@ -181,8 +184,9 @@ export default function JobDetailPage() {
                   슬라이드 다운로드 (.pdf)
                 </button>
               ) : outputFormats.includes("slides") ? (
-                <span className="inline-flex items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 px-2.5 h-8 text-sm text-muted-foreground">
-                  슬라이드 생성 중...
+                <span className="inline-flex items-center gap-2 rounded-lg border border-dashed border-muted-foreground/30 px-2.5 h-8 text-sm text-muted-foreground">
+                  <span className="inline-block w-3 h-3 rounded-full border-2 border-muted-foreground/50 border-t-transparent animate-spin" />
+                  슬라이드 생성 중 (백그라운드)
                 </span>
               ) : null}
             </div>
@@ -202,17 +206,20 @@ export default function JobDetailPage() {
           </div>
           {(() => {
             const tmpl = job.templateConfig ? JSON.parse(job.templateConfig) : null;
-            if (!tmpl) return null;
             return (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">디자인 템플릿</span>
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block w-3 h-3 rounded-sm border border-border"
-                    style={{ backgroundColor: tmpl.style?.accent }}
-                  />
-                  {tmpl.name}
-                </span>
+                {tmpl ? (
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-3 h-3 rounded-sm border border-border"
+                      style={{ backgroundColor: tmpl.style?.accent }}
+                    />
+                    {tmpl.name}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">기본 스타일</span>
+                )}
               </div>
             );
           })()}
