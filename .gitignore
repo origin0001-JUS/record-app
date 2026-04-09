@@ -12,3 +12,4 @@ web/.next/
 web/src/generated/
 web/node_modules/
 *.node
+.gstack/

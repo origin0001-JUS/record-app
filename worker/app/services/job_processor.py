@@ -116,8 +116,19 @@ class JobProcessor:
                 if "report" in output_formats:
                     await self._update_status(job_id, "generating_report", statusMessage="보고서 생성 중...")
                     report_custom_prompt = self._build_report_instructions(template_config)
+                    # Map preset reportTemplate to NotebookLM ReportFormat values
+                    report_format_map = {
+                        "briefing": "briefing_doc",
+                        "briefing_doc": "briefing_doc",
+                        "blog": "blog_post",
+                        "blog_post": "blog_post",
+                        "study": "study_guide",
+                        "study_guide": "study_guide",
+                        "custom": "custom",
+                    }
+                    api_report_format = report_format_map.get(report_template, "briefing_doc")
                     await notebooklm_service.generate_report(
-                        notebook_id, report_format=report_template, language="ko",
+                        notebook_id, report_format=api_report_format, language="ko",
                         custom_prompt=report_custom_prompt,
                     )
                     report_path = str(output_dir / "report.md")

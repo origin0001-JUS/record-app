@@ -14,6 +14,9 @@ import { REPORT_TEMPLATES, type ReportTemplate } from "@/lib/report-templates";
 const MEETING_TYPE_TO_CATEGORY: Record<string, string | null> = {
   regular: "정기회의",
   strategy: "전략/의사결정",
+  internal_report: "내부 보고",
+  executive_report: "임원 보고",
+  directives: "지시사항 정리",
   external: "외부/협력",
   tech: "기술/개발",
   seminar: "강연/세미나",

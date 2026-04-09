@@ -17,23 +17,21 @@
 - **최신 커밋**: (최신)
 
 ### 이번 세션에서 완료한 것
-- [x] 프로젝트 상태 점검 및 이전 세션 TODO 소화
-- [x] Worker 실행 확인, GCP 방화벽 8000 오픈, Vercel 연동 확인
-- [x] Job 타입에 templateConfig 필드 추가 + Job 상세 페이지 표시
-- [x] **QA: 업로드 UI 개선** — 프리셋/템플릿 역할 설명 추가
-- [x] **QA: 보고서 생성에 templateConfig 반영** — hardcoded → reportTemplate + custom_prompt 사용
-- [x] **QA: promptTemplate 간소화** — 마크다운 구조 지시 제거, 자연어 기반으로 변경
-- [x] **QA: Job 상세 상태 표시 개선** — 슬라이드 백그라운드 polling, 스피너, 기본 스타일 표시
-- [x] 빌드 성공 (Next.js 16.2.1, 로그: docs/build-logs/2026-04-08-qa.txt)
+- [x] 이전 QA 수정 (업로드 UI, 보고서, 프롬프트, 상태표시)
+- [x] **보고서 format 수정** — reportTemplate "briefing" → "briefing_doc" (API enum 불일치 해결)
+- [x] **report_format 매핑** — 프리셋값 → NotebookLM ReportFormat 자동 변환
+- [x] **프리셋 3개 추가** — 내부 보고, 임원 보고, 지시사항 정리 (총 11개)
+- [x] **디자인 템플릿 15개 추가** — 내부보고 5, 임원보고 5, 지시사항정리 5 (총 53개)
+- [x] 웹 타입/카테고리 매핑 업데이트
+- [x] 빌드 성공 (docs/build-logs/2026-04-09.txt)
 
 ### 블로커 / 주의사항
-- Vercel CLI 인증: 토큰 방식 사용 중 (만료 시 재발급 필요)
-- promptTemplate 변경은 기존 DB도 API로 업데이트 완료됨
-- Worker 재시작 시 새 seed_presets.py 반영 (기존 프리셋 있으면 건너뜀)
+- 슬라이드 생성이 타임아웃 되는 문제는 NotebookLM API 쪽 이슈일 수 있음 (600초 타임아웃)
+- 기존 DB 프리셋 reportTemplate도 API로 briefing_doc으로 수정 완료
 
 ### 다음 에이전트의 할 일
-1. E2E 테스트 — 실제 파일 업로드 → 요약/보고서/슬라이드 품질 확인
-2. 요약 내용에 여전히 이상한 말이 나오면 promptTemplate 추가 튜닝
+1. E2E 테스트 — 실제 파일 업로드 → 보고서 생성 확인 (format 수정 후)
+2. 슬라이드 타임아웃 원인 조사 (NotebookLM API 제한 vs 네트워크 이슈)
 
 ---
 
@@ -51,7 +49,7 @@
 | 에이전트 | 상태 | 현재 작업 | 블로커 |
 |----------|------|----------|--------|
 | **Antigravity** | [대기] | — | — |
-| **Claude Code** | [작업 완료] | QA 4건 수정 (UI, 보고서, 프롬프트, 상태표시) | — |
+| **Claude Code** | [작업 완료] | 프리셋/템플릿 확장, 보고서 format 수정 | — |
 | **Claude Web** | [대기] | — | — |
 
 ---
