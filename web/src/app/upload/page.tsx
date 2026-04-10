@@ -130,6 +130,7 @@ export default function UploadPage() {
       formData.append("file", file);
       formData.append("jobId", `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
       const uploadRes = await authFetch("/api/upload", { method: "POST", body: formData });
+      if (!uploadRes.ok) throw new Error("파일 업로드에 실패했습니다");
       const { filePath, fileName } = await uploadRes.json();
 
       // Start analysis (Phase 1)
@@ -138,6 +139,7 @@ export default function UploadPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath, fileName, fileType: detectFileType(file) }),
       });
+      if (!analyzeRes.ok) throw new Error("분석 시작에 실패했습니다");
       const job = await analyzeRes.json();
       setJobId(job.id);
 
@@ -145,6 +147,7 @@ export default function UploadPage() {
       pollingRef.current = setInterval(async () => {
         try {
           const res = await authFetch(`/api/jobs/${job.id}`);
+          if (!res.ok) return; // polling error, retry next interval
           const data = await res.json();
           if (data.status === "analyzed" && data.analysisResult) {
             const result = JSON.parse(data.analysisResult);
@@ -173,7 +176,7 @@ export default function UploadPage() {
     setIsSubmitting(true);
 
     try {
-      await authFetch(`/api/jobs/${jobId}/generate`, {
+      const genRes = await authFetch(`/api/jobs/${jobId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -187,10 +190,11 @@ export default function UploadPage() {
           } : null,
         }),
       });
+      if (!genRes.ok) throw new Error("처리 시작에 실패했습니다");
       router.push(`/jobs/${jobId}`);
     } catch (error) {
       console.error("Generate error:", error);
-      setFileError("처리 시작에 실패했습니다. 다시 시도해주세요.");
+      setFileError(error instanceof Error ? error.message : "처리 시작에 실패했습니다. 다시 시도해주세요.");
       setIsSubmitting(false);
     }
   };
