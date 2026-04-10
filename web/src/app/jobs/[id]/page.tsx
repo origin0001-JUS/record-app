@@ -164,18 +164,10 @@ export default function JobDetailPage() {
               </div>
             )}
 
-            {job.summaryText && (job.reportPath || job.slidesPath) && <Separator />}
+            {job.summaryText && (job.slidesPath || outputFormats.includes("slides")) && <Separator />}
 
             {/* Downloads */}
             <div className="flex gap-3">
-              {job.reportPath && (
-                <button
-                  onClick={() => handleDownload("report", `${job.originalFileName}-보고서.txt`)}
-                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-8 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors"
-                >
-                  보고서 다운로드
-                </button>
-              )}
               {job.slidesPath ? (
                 <button
                   onClick={() => handleDownload("slides", `${job.originalFileName}-슬라이드.pdf`)}
