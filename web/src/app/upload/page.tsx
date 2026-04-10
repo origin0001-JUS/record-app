@@ -25,6 +25,14 @@ const MEETING_TYPE_TO_CATEGORY: Record<string, string | null> = {
   general: null, // show all
 };
 
+// 프리셋 표시 순서 (보고 유형을 상단에 배치)
+const PRESET_DISPLAY_ORDER: string[] = [
+  "internal_report", "executive_report", "directives",
+  "regular", "strategy", "external",
+  "tech", "project", "seminar",
+  "brainstorming", "general",
+];
+
 const OUTPUT_TYPE_LABELS: Record<string, string> = {
   summary: "요약",
   report: "보고서",
@@ -44,7 +52,14 @@ export default function UploadPage() {
   useEffect(() => {
     authFetch("/api/presets")
       .then((res) => res.json())
-      .then(setPresets);
+      .then((data: Preset[]) => {
+        data.sort((a, b) => {
+          const ai = PRESET_DISPLAY_ORDER.indexOf(a.meetingType);
+          const bi = PRESET_DISPLAY_ORDER.indexOf(b.meetingType);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
+        setPresets(data);
+      });
   }, []);
 
   // Reset template when preset changes
