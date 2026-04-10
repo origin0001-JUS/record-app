@@ -12,7 +12,7 @@ DEFAULT_PRESETS = [
     {
         "name": "정기회의 — 주간/월간 보고",
         "meetingType": "regular",
-        "outputFormats": json.dumps(["summary", "report"]),
+        "outputFormats": json.dumps(["summary"]),
         "promptTemplate": (
             "이 정기회의 녹취록을 바탕으로 회의 내용을 요약하세요.\n\n"
             "핵심 요약을 3줄 이내로 먼저 작성하고, "
@@ -28,7 +28,7 @@ DEFAULT_PRESETS = [
     {
         "name": "전략회의 — 의사결정 기록",
         "meetingType": "strategy",
-        "outputFormats": json.dumps(["summary", "report", "slides"]),
+        "outputFormats": json.dumps(["summary", "slides"]),
         "promptTemplate": (
             "이 전략/의사결정 회의 녹취록을 바탕으로 회의 내용을 요약하세요.\n\n"
             "핵심 결론을 1~2문장으로 먼저 작성하고, "
@@ -45,7 +45,7 @@ DEFAULT_PRESETS = [
     {
         "name": "내부 보고 — 팀/부서 보고",
         "meetingType": "internal_report",
-        "outputFormats": json.dumps(["summary", "report"]),
+        "outputFormats": json.dumps(["summary"]),
         "promptTemplate": (
             "이 회의/미팅 녹취록을 바탕으로 내부 보고용으로 정리하세요.\n\n"
             "보고 배경과 목적을 먼저 작성하고, "
@@ -61,7 +61,7 @@ DEFAULT_PRESETS = [
     {
         "name": "임원 보고 — 경영진 브리핑",
         "meetingType": "executive_report",
-        "outputFormats": json.dumps(["summary", "report", "slides"]),
+        "outputFormats": json.dumps(["summary", "slides"]),
         "promptTemplate": (
             "이 회의/미팅 녹취록을 바탕으로 임원 보고용으로 정리하세요.\n\n"
             "핵심 결론과 권고사항을 먼저 제시하고, "
@@ -78,7 +78,7 @@ DEFAULT_PRESETS = [
     {
         "name": "지시사항 정리 — 업무 지시/전달사항",
         "meetingType": "directives",
-        "outputFormats": json.dumps(["summary", "report"]),
+        "outputFormats": json.dumps(["summary"]),
         "promptTemplate": (
             "이 회의/미팅 녹취록에서 지시사항과 전달사항을 추출하세요.\n\n"
             "지시자와 지시 배경을 먼저 작성하고, "
@@ -95,7 +95,7 @@ DEFAULT_PRESETS = [
     {
         "name": "외부미팅 — 고객·파트너 협의",
         "meetingType": "external",
-        "outputFormats": json.dumps(["summary", "report"]),
+        "outputFormats": json.dumps(["summary"]),
         "promptTemplate": (
             "이 외부 미팅(고객/파트너) 녹취록을 바탕으로 회의 내용을 요약하세요.\n\n"
             "미팅 개요(참석자, 목적)를 먼저 작성하고, "
@@ -111,7 +111,7 @@ DEFAULT_PRESETS = [
     {
         "name": "기술회의 — 개발·아키텍처 리뷰",
         "meetingType": "tech",
-        "outputFormats": json.dumps(["summary", "report"]),
+        "outputFormats": json.dumps(["summary"]),
         "promptTemplate": (
             "이 기술/개발 회의 녹취록을 바탕으로 회의 내용을 요약하세요.\n\n"
             "기술 결정 요약을 먼저 작성하고, "
@@ -129,7 +129,7 @@ DEFAULT_PRESETS = [
     {
         "name": "강연·세미나 — 인사이트 정리",
         "meetingType": "seminar",
-        "outputFormats": json.dumps(["summary", "report", "slides"]),
+        "outputFormats": json.dumps(["summary", "slides"]),
         "promptTemplate": (
             "이 강연/세미나 녹취록을 바탕으로 내용을 요약하세요.\n\n"
             "핵심 메시지를 3개 이내로 먼저 작성하고, "
@@ -146,7 +146,7 @@ DEFAULT_PRESETS = [
     {
         "name": "브레인스토밍 — 아이디어 정리",
         "meetingType": "brainstorming",
-        "outputFormats": json.dumps(["summary", "report"]),
+        "outputFormats": json.dumps(["summary"]),
         "promptTemplate": (
             "이 브레인스토밍 회의 녹취록을 바탕으로 내용을 요약하세요.\n\n"
             "브레인스토밍 주제를 먼저 작성하고, "
@@ -164,7 +164,7 @@ DEFAULT_PRESETS = [
     {
         "name": "프로젝트 — 진행 상황 점검",
         "meetingType": "project",
-        "outputFormats": json.dumps(["summary", "report", "slides"]),
+        "outputFormats": json.dumps(["summary", "slides"]),
         "promptTemplate": (
             "이 프로젝트 관리 회의 녹취록을 바탕으로 내용을 요약하세요.\n\n"
             "프로젝트 상태 요약(진행률, 일정, 예산)을 먼저 작성하고, "

@@ -14,9 +14,9 @@ import { authFetch } from "@/lib/api";
 const STATUS_STEPS: JobStatus[] = [
   "pending",
   "uploading",
-  "processing",
+  "analyzing",
+  "analyzed",
   "generating_summary",
-  "generating_report",
   "generating_slides",
   "complete",
 ];

@@ -38,7 +38,7 @@ class Job(Base):
 
     id = Column(String, primary_key=True)
     userId = Column(String, ForeignKey("User.id"), nullable=False)
-    presetId = Column(String, ForeignKey("Preset.id"), nullable=False)
+    presetId = Column(String, ForeignKey("Preset.id"), nullable=True)  # nullable: Phase 1에서는 프리셋 미선택
     status = Column(String, default="pending")
     statusMessage = Column(String, nullable=True)
 
@@ -53,6 +53,8 @@ class Job(Base):
     reportPath = Column(String, nullable=True)
     slidesPath = Column(String, nullable=True)
     templateConfig = Column(Text, nullable=True)  # JSON: slide design template settings
+
+    analysisResult = Column(Text, nullable=True)  # JSON: {type, topic, summary, suggestedPresets}
 
     errorMessage = Column(Text, nullable=True)
     createdAt = Column(DateTime, default=lambda: datetime.now(timezone.utc))

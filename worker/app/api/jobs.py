@@ -31,6 +31,8 @@ def _job_to_dict(job: Job, preset: Preset | None = None) -> dict:
         "summaryText": job.summaryText,
         "reportPath": job.reportPath,
         "slidesPath": job.slidesPath,
+        "templateConfig": job.templateConfig,
+        "analysisResult": job.analysisResult,
         "errorMessage": job.errorMessage,
         "createdAt": job.createdAt.isoformat() if job.createdAt else None,
         "updatedAt": job.updatedAt.isoformat() if job.updatedAt else None,
@@ -131,6 +133,88 @@ async def create_job(body: dict):
                 "outputFormats": preset.outputFormats,
                 "reportTemplate": preset.reportTemplate,
                 "slideFormat": preset.slideFormat,
+                "meetingType": preset.meetingType,
+                "templateConfig": template_config,
+            },
+        )
+
+        return _job_to_dict(job, preset)
+
+
+@router.post("/api/jobs/analyze", status_code=201)
+async def analyze_job(body: dict):
+    """Phase 1: 파일 업로드 + AI 분석. 프리셋 선택 전에 자료 유형을 파악한다."""
+    file_path = body.get("filePath")
+    file_name = body.get("fileName")
+    file_type = body.get("fileType")
+
+    if not all([file_path, file_name, file_type]):
+        raise HTTPException(status_code=400, detail="filePath, fileName, fileType은 필수 항목입니다")
+
+    async with async_session() as session:
+        job = Job(
+            id=str(uuid4()),
+            userId=body.get("userId", "dev-user"),
+            presetId="",  # Phase 1에서는 미선택, Phase 2에서 설정
+            originalFileName=file_name,
+            uploadedFilePath=file_path,
+            fileType=file_type,
+            status="uploading",
+            createdAt=datetime.now(timezone.utc),
+            updatedAt=datetime.now(timezone.utc),
+        )
+        session.add(job)
+        await session.commit()
+        await session.refresh(job)
+
+        # Phase 1 백그라운드 실행
+        await job_processor.submit_analyze(
+            job_id=job.id,
+            file_path=file_path,
+            file_type=file_type,
+        )
+
+        return _job_to_dict(job)
+
+
+@router.post("/api/jobs/{job_id}/generate", status_code=200)
+async def generate_job(job_id: str, body: dict):
+    """Phase 2: 프리셋+템플릿 선택 후 요약/슬라이드 생성 시작."""
+    preset_id = body.get("presetId")
+    if not preset_id:
+        raise HTTPException(status_code=400, detail="presetId는 필수 항목입니다")
+
+    async with async_session() as session:
+        result = await session.execute(select(Job).where(Job.id == job_id))
+        job = result.scalar_one_or_none()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job을 찾을 수 없습니다")
+        if job.status != "analyzed":
+            raise HTTPException(status_code=400, detail=f"분석이 완료되지 않았습니다 (현재: {job.status})")
+        if not job.notebookId:
+            raise HTTPException(status_code=400, detail="노트북이 생성되지 않았습니다")
+
+        p_result = await session.execute(select(Preset).where(Preset.id == preset_id))
+        preset = p_result.scalar_one_or_none()
+        if not preset:
+            raise HTTPException(status_code=400, detail="프리셋을 찾을 수 없습니다")
+
+        template_config = body.get("templateConfig")
+        job.presetId = preset_id
+        job.templateConfig = json.dumps(template_config) if template_config else None
+        job.status = "generating_summary"
+        job.statusMessage = "요약 생성 중..."
+        job.updatedAt = datetime.now(timezone.utc)
+        await session.commit()
+        await session.refresh(job)
+
+        # Phase 2 백그라운드 실행
+        await job_processor.submit_generate(
+            job_id=job.id,
+            notebook_id=job.notebookId,
+            preset_config={
+                "promptTemplate": preset.promptTemplate,
+                "outputFormats": preset.outputFormats,
                 "meetingType": preset.meetingType,
                 "templateConfig": template_config,
             },

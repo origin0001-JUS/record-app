@@ -12,25 +12,31 @@
 ## 최근 핸드오프 (Latest Handoff)
 
 - **From**: Claude Code (텔레그램 세션)
-- **When**: 2026-04-10
+- **When**: 2026-04-10 (v2 스마트 플로우)
 - **Branch**: `master`
 - **최신 커밋**: (최신)
 
 ### 이번 세션에서 완료한 것
-- [x] 보고서 format "briefing" → "briefing_doc" 수정 + report_format 매핑
-- [x] 프리셋 3개 추가 (내부 보고, 임원 보고, 지시사항 정리 → 총 11개)
-- [x] 디자인 템플릿 15개 추가 (총 53개)
-- [x] **QA: 슬라이드 백그라운드 5분 타임아웃 추가** — 무한 대기 방지
-- [x] **QA: 프리셋 순서 개선** — 보고 유형(내부/임원/지시) 상단 배치
-- [x] 빌드 성공 (docs/build-logs/2026-04-10.txt)
+- [x] **v2 스마트 플로우 전면 구현**
+- [x] Worker: 2-Phase Job API (POST /analyze → POST /{id}/generate)
+- [x] Worker: AI 자료 분석 + 프리셋 추천 로직 (job_processor.py)
+- [x] Web: 업로드 페이지 재작성 (3단계 논블로킹 플로우)
+- [x] Web: analyze + generate API route 프록시 추가
+- [x] DB: analysisResult 필드 추가 + 새 상태 (analyzing/analyzed)
+- [x] 프리셋 outputFormats에서 report 제거 (요약+슬라이드만)
+- [x] Job 상세 페이지 상태 흐름 업데이트
+- [x] 빌드 성공 (docs/build-logs/2026-04-10-v2.txt)
 
 ### 블로커 / 주의사항
-- 슬라이드 생성이 5분 내 완료되지 않으면 타임아웃 메시지 표시 (Job은 complete 유지)
-- Worker 재시작 필요 (코드 변경 반영)
+- 기존 DB에 ALTER TABLE 수동 실행함 (analysisResult 추가)
+- presetId NOT NULL 제약: Phase 1에서 빈 문자열 사용 (SQLite ALTER COLUMN 불가)
+- 기존 Job 생성 API (POST /api/jobs)는 레거시 호환용으로 유지
+- Worker 재시작 필요
 
 ### 다음 에이전트의 할 일
-1. E2E 테스트 — 파일 업로드 → 보고서 생성 정상 확인
-2. 슬라이드 생성 성공 여부 모니터링 (NotebookLM API 안정성)
+1. E2E 테스트 — 파일 업로드 → AI 분석 → 프리셋 추천 → 생성 플로우 검증
+2. 기존 DB 프리셋 outputFormats에서 report 제거 (API로 업데이트)
+3. UI/UX 디자인 세련화 (모바일 퍼스트)
 
 ---
 

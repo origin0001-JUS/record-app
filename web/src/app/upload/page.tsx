@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +22,9 @@ const MEETING_TYPE_TO_CATEGORY: Record<string, string | null> = {
   seminar: "강연/세미나",
   brainstorming: "브레인스토밍",
   project: "프로젝트 관리",
-  general: null, // show all
+  general: null,
 };
 
-// 프리셋 표시 순서 (보고 유형을 상단에 배치)
 const PRESET_DISPLAY_ORDER: string[] = [
   "internal_report", "executive_report", "directives",
   "regular", "strategy", "external",
@@ -33,22 +32,39 @@ const PRESET_DISPLAY_ORDER: string[] = [
   "brainstorming", "general",
 ];
 
-const OUTPUT_TYPE_LABELS: Record<string, string> = {
-  summary: "요약",
-  report: "보고서",
-  slides: "슬라이드",
-};
+interface AnalysisResult {
+  type: string;
+  topic: string;
+  summary: string;
+  suggestedPresets: string[];
+}
 
 export default function UploadPage() {
   const router = useRouter();
-  const [file, setFile] = useState<File | null>(null);
-  const [presets, setPresets] = useState<Preset[]>([]);
-  const [selectedPresetId, setSelectedPresetId] = useState<string>("");
-  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [fileError, setFileError] = useState<string>("");
 
+  // Step 1: File
+  const [file, setFile] = useState<File | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [fileError, setFileError] = useState("");
+
+  // Step 2: Preset (shown immediately after upload)
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [showAllPresets, setShowAllPresets] = useState(false);
+
+  // AI Analysis (background)
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Step 3: Template
+  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
+
+  // Submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load presets on mount
   useEffect(() => {
     authFetch("/api/presets")
       .then((res) => res.json())
@@ -66,6 +82,13 @@ export default function UploadPage() {
   useEffect(() => {
     setSelectedTemplate(null);
   }, [selectedPresetId]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const validateAndSetFile = (f: File) => {
     setFileError("");
@@ -95,30 +118,66 @@ export default function UploadPage() {
     return "text";
   };
 
-  const handleSubmit = async () => {
-    if (!file || !selectedPresetId) return;
-    setIsSubmitting(true);
+  // Phase 1: Upload + Analyze (background)
+  const handleUploadAndAnalyze = async () => {
+    if (!file) return;
+    setIsAnalyzing(true);
+    setAnalysis(null);
 
     try {
-      // Generate a temporary job ID
-      const jobId = `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-      // Step 1: Upload file
+      // Upload file
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("jobId", jobId);
+      formData.append("jobId", `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
       const uploadRes = await authFetch("/api/upload", { method: "POST", body: formData });
       const { filePath, fileName } = await uploadRes.json();
 
-      // Step 2: Create job
-      const jobRes = await authFetch("/api/jobs", {
+      // Start analysis (Phase 1)
+      const analyzeRes = await authFetch("/api/jobs/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filePath, fileName, fileType: detectFileType(file) }),
+      });
+      const job = await analyzeRes.json();
+      setJobId(job.id);
+
+      // Poll for analysis result
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await authFetch(`/api/jobs/${job.id}`);
+          const data = await res.json();
+          if (data.status === "analyzed" && data.analysisResult) {
+            const result = JSON.parse(data.analysisResult);
+            setAnalysis(result);
+            setIsAnalyzing(false);
+            if (pollingRef.current) clearInterval(pollingRef.current);
+          } else if (data.status === "error") {
+            setIsAnalyzing(false);
+            setAnalysis({ type: "general", topic: "분석 실패", summary: data.errorMessage || "", suggestedPresets: ["general"] });
+            if (pollingRef.current) clearInterval(pollingRef.current);
+          }
+        } catch {
+          // polling error, keep trying
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setFileError("업로드에 실패했습니다. 다시 시도해주세요.");
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Phase 2: Generate
+  const handleGenerate = async () => {
+    if (!jobId || !selectedPresetId) return;
+    setIsSubmitting(true);
+
+    try {
+      await authFetch(`/api/jobs/${jobId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           presetId: selectedPresetId,
-          filePath,
-          fileName,
-          fileType: detectFileType(file),
           templateConfig: selectedTemplate ? {
             id: selectedTemplate.id,
             name: selectedTemplate.name,
@@ -128,12 +187,9 @@ export default function UploadPage() {
           } : null,
         }),
       });
-      const job = await jobRes.json();
-
-      // Navigate to job detail
-      router.push(`/jobs/${job.id}`);
+      router.push(`/jobs/${jobId}`);
     } catch (error) {
-      console.error("Submit error:", error);
+      console.error("Generate error:", error);
       setFileError("처리 시작에 실패했습니다. 다시 시도해주세요.");
       setIsSubmitting(false);
     }
@@ -143,14 +199,23 @@ export default function UploadPage() {
   const selectedFormats: OutputFormat[] = selectedPreset
     ? JSON.parse(selectedPreset.outputFormats)
     : [];
+  const hasSlides = selectedFormats.includes("slides");
 
   const filteredTemplates = useMemo(() => {
     if (!selectedPreset) return [];
     const category = MEETING_TYPE_TO_CATEGORY[selectedPreset.meetingType as string];
-    if (category === null) return REPORT_TEMPLATES; // general → show all
-    if (category === undefined) return REPORT_TEMPLATES; // unknown → show all
+    if (category === null) return REPORT_TEMPLATES;
+    if (category === undefined) return REPORT_TEMPLATES;
     return REPORT_TEMPLATES.filter((t) => t.category === category);
   }, [selectedPreset]);
+
+  // Determine which presets to show (recommended vs all)
+  const suggestedMeetingTypes = analysis?.suggestedPresets || [];
+  const recommendedPresets = presets.filter((p) => suggestedMeetingTypes.includes(p.meetingType));
+  const otherPresets = presets.filter((p) => !suggestedMeetingTypes.includes(p.meetingType));
+
+  // Phase check: has the file been uploaded?
+  const isUploaded = !!jobId;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -164,10 +229,7 @@ export default function UploadPage() {
         <CardContent>
           <div
             onDrop={handleDrop}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
               dragOver
@@ -191,9 +253,9 @@ export default function UploadPage() {
                 <p className="text-sm text-muted-foreground">
                   {(file.size / 1024 / 1024).toFixed(1)} MB
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  클릭하거나 드래그하여 파일 변경
-                </p>
+                {!isUploaded && (
+                  <p className="text-xs text-muted-foreground">클릭하거나 드래그하여 파일 변경</p>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
@@ -204,119 +266,175 @@ export default function UploadPage() {
               </div>
             )}
           </div>
-          {fileError && (
-            <p className="text-destructive text-sm mt-2">{fileError}</p>
+          {fileError && <p className="text-destructive text-sm mt-2">{fileError}</p>}
+
+          {file && !isUploaded && (
+            <Button
+              onClick={handleUploadAndAnalyze}
+              className="w-full mt-4"
+              disabled={isAnalyzing}
+            >
+              {isAnalyzing ? "업로드 중..." : "업로드 및 분석 시작"}
+            </Button>
           )}
         </CardContent>
       </Card>
 
-      {/* Step 2: Preset Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">2. 프리셋 선택</CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            회의 유형에 맞는 요약 구조와 생성할 산출물을 결정합니다
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3">
-            {presets.map((preset) => {
-              const formats: OutputFormat[] = JSON.parse(preset.outputFormats);
-              const isSelected = selectedPresetId === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  onClick={() => setSelectedPresetId(preset.id)}
-                  className={`text-left p-4 rounded-lg border-2 transition-colors ${
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-transparent bg-muted/50 hover:bg-muted"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{preset.name}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {MEETING_TYPE_DESCRIPTIONS[preset.meetingType as MeetingType] || MEETING_TYPE_LABELS[preset.meetingType as MeetingType] || preset.meetingType}
-                      </p>
-                    </div>
-                    <div className="flex gap-1">
-                      {formats.map((f) => (
-                        <Badge key={f} variant="secondary" className="text-xs">
-                          {OUTPUT_FORMAT_LABELS[f] || f}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Step 3: Template Selection */}
-      {selectedPreset && (
+      {/* Step 2: Preset Selection (shown after upload) */}
+      {isUploaded && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">3. 디자인 템플릿 선택</CardTitle>
+            <CardTitle className="text-base">2. 정리 방식 선택</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              선택한 템플릿의 색상·레이아웃이 슬라이드와 보고서에 반영됩니다
+              어떤 관점으로 자료를 정리할지 선택합니다
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Analysis result card */}
+            {isAnalyzing && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 text-sm">
+                <span className="inline-block w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <span className="text-muted-foreground">AI가 자료를 분석하고 있습니다... 완료되면 추천 프리셋이 표시됩니다</span>
+              </div>
+            )}
+            {analysis && (
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm space-y-1">
+                <p className="font-medium">{analysis.topic}</p>
+                <p className="text-xs text-muted-foreground">
+                  유형: {MEETING_TYPE_LABELS[analysis.type as MeetingType] || analysis.type}
+                </p>
+              </div>
+            )}
+
+            {/* Recommended presets */}
+            <div className="grid grid-cols-1 gap-3">
+              {(analysis ? recommendedPresets : presets.slice(0, 4)).map((preset) => {
+                const formats: OutputFormat[] = JSON.parse(preset.outputFormats);
+                const isSelected = selectedPresetId === preset.id;
+                const isRecommended = suggestedMeetingTypes.includes(preset.meetingType);
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() => setSelectedPresetId(preset.id)}
+                    className={`text-left p-4 rounded-lg border-2 transition-colors ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-transparent bg-muted/50 hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {isRecommended && <span className="text-yellow-500 text-sm">&#11088;</span>}
+                          <p className="font-medium">{preset.name}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {MEETING_TYPE_DESCRIPTIONS[preset.meetingType as MeetingType] || ""}
+                        </p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {formats.map((f) => (
+                          <Badge key={f} variant="secondary" className="text-xs">
+                            {OUTPUT_FORMAT_LABELS[f] || f}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Show more toggle */}
+            {analysis && otherPresets.length > 0 && (
+              <>
+                <button
+                  onClick={() => setShowAllPresets(!showAllPresets)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-center py-2"
+                >
+                  {showAllPresets ? "▲ 접기" : `▼ 다른 프리셋 더 보기 (${otherPresets.length}개)`}
+                </button>
+                {showAllPresets && (
+                  <div className="grid grid-cols-1 gap-3">
+                    {otherPresets.map((preset) => {
+                      const formats: OutputFormat[] = JSON.parse(preset.outputFormats);
+                      const isSelected = selectedPresetId === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          onClick={() => setSelectedPresetId(preset.id)}
+                          className={`text-left p-4 rounded-lg border-2 transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary/5"
+                              : "border-transparent bg-muted/50 hover:bg-muted"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{preset.name}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {MEETING_TYPE_DESCRIPTIONS[preset.meetingType as MeetingType] || ""}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              {formats.map((f) => (
+                                <Badge key={f} variant="secondary" className="text-xs">
+                                  {OUTPUT_FORMAT_LABELS[f] || f}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 3: Template Selection (only for presets with slides) */}
+      {isUploaded && selectedPreset && hasSlides && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">3. 슬라이드 스타일</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              선택한 스타일이 슬라이드 디자인에 반영됩니다
             </p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 gap-3">
-              {/* No template option */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <button
                 onClick={() => setSelectedTemplate(null)}
-                className={`text-left p-4 rounded-lg border-2 transition-colors ${
+                className={`p-3 rounded-lg border-2 transition-colors text-center ${
                   selectedTemplate === null
                     ? "border-primary bg-primary/5"
                     : "border-transparent bg-muted/50 hover:bg-muted"
                 }`}
               >
-                <p className="font-medium">선택 안 함</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  기본 스타일로 생성합니다
-                </p>
+                <p className="text-sm font-medium">기본</p>
+                <p className="text-xs text-muted-foreground mt-1">기본 스타일</p>
               </button>
-
               {filteredTemplates.map((template) => {
                 const isSelected = selectedTemplate?.id === template.id;
                 return (
                   <button
                     key={template.id}
                     onClick={() => setSelectedTemplate(template)}
-                    className={`text-left rounded-lg border-2 transition-colors overflow-hidden ${
+                    className={`p-3 rounded-lg border-2 transition-colors text-center ${
                       isSelected
                         ? "border-primary bg-primary/5"
                         : "border-transparent bg-muted/50 hover:bg-muted"
                     }`}
                   >
-                    <div className="flex">
-                      {/* Color accent bar */}
-                      <div
-                        className="w-1.5 shrink-0"
-                        style={{ backgroundColor: template.style.accent }}
-                      />
-                      <div className="p-4 flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{template.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {template.description}
-                            </p>
-                          </div>
-                          <div className="flex gap-1 shrink-0">
-                            {template.outputType.map((t) => (
-                              <Badge key={t} variant="outline" className="text-xs">
-                                {OUTPUT_TYPE_LABELS[t] || t}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+                    <div className="flex justify-center gap-1 mb-2">
+                      <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: template.style.accent }} />
+                      <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: template.style.bg }} />
+                      <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: template.style.heading }} />
                     </div>
+                    <p className="text-xs font-medium truncate">{template.name}</p>
                   </button>
                 );
               })}
@@ -325,36 +443,33 @@ export default function UploadPage() {
         </Card>
       )}
 
-      {/* Step 4: Confirm */}
-      {file && selectedPreset && (
+      {/* Step 4: Confirm & Start */}
+      {isUploaded && selectedPreset && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">4. 확인 및 시작</CardTitle>
+            <CardTitle className="text-base">
+              {hasSlides ? "4" : "3"}. 확인 및 시작
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="text-sm space-y-1">
+              <p><span className="text-muted-foreground">파일:</span> {file?.name}</p>
+              <p><span className="text-muted-foreground">정리 방식:</span> {selectedPreset.name}</p>
+              {hasSlides && (
+                <p><span className="text-muted-foreground">슬라이드 스타일:</span> {selectedTemplate ? selectedTemplate.name : "기본"}</p>
+              )}
               <p>
-                <span className="text-muted-foreground">파일:</span> {file.name}
-              </p>
-              <p>
-                <span className="text-muted-foreground">프리셋:</span> {selectedPreset.name}
-              </p>
-              <p>
-                <span className="text-muted-foreground">템플릿:</span>{" "}
-                {selectedTemplate ? selectedTemplate.name : "기본 스타일"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">생성할 산출물:</span>{" "}
+                <span className="text-muted-foreground">산출물:</span>{" "}
                 {selectedFormats.map((f) => OUTPUT_FORMAT_LABELS[f]).join(", ")}
               </p>
             </div>
             <Button
-              onClick={handleSubmit}
+              onClick={handleGenerate}
               disabled={isSubmitting}
               className="w-full"
               size="lg"
             >
-              {isSubmitting ? "처리 시작 중..." : "회의록 처리 시작"}
+              {isSubmitting ? "처리 시작 중..." : "처리 시작"}
             </Button>
           </CardContent>
         </Card>

@@ -29,11 +29,148 @@ class JobProcessor:
         self.tasks[job_id] = task
         logger.info(f"Submitted job {job_id}")
 
+    # ========== v2 Smart Flow: 2-Phase ==========
+
+    async def submit_analyze(self, job_id: str, file_path: str, file_type: str):
+        """Phase 1: 파일 업로드 + AI 분석 (프리셋 선택 전)"""
+        task = asyncio.create_task(self._run_analyze(job_id, file_path, file_type))
+        self.tasks[job_id] = task
+        logger.info(f"Submitted analyze job {job_id}")
+
+    async def submit_generate(self, job_id: str, notebook_id: str, preset_config: dict):
+        """Phase 2: 프리셋/템플릿 선택 후 요약+슬라이드 생성"""
+        task = asyncio.create_task(self._run_generate(job_id, notebook_id, preset_config))
+        self.tasks[f"{job_id}-gen"] = task
+        logger.info(f"Submitted generate job {job_id}")
+
+    async def _run_analyze(self, job_id: str, file_path: str, file_type: str):
+        """Phase 1: 노트북 생성 → 소스 추가 → 분석 질문 → analysisResult 저장"""
+        async with self.semaphore:
+            try:
+                await self._update_status(job_id, "uploading", statusMessage="노트북 생성 중...")
+                notebook_name = f"Record-{datetime.now().strftime('%Y%m%d-%H%M')}"
+                notebook_id = await notebooklm_service.create_notebook(notebook_name)
+                await self._update_status(job_id, "uploading", notebookId=notebook_id, statusMessage="소스 추가 중...")
+
+                if file_type in ("text", "stt_text"):
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        text_content = f.read()
+                    source_id = await notebooklm_service.add_source_text(
+                        notebook_id, text_content, title="Record"
+                    )
+                else:
+                    source_id = await notebooklm_service.add_source_file(notebook_id, file_path)
+
+                await self._update_status(job_id, "analyzing", sourceId=source_id, statusMessage="자료 분석 중...")
+
+                # 분석 질문
+                analysis_prompt = (
+                    "이 자료의 종류와 핵심 주제를 JSON 형식으로 알려주세요.\n"
+                    "종류는 다음 중 하나를 선택하세요:\n"
+                    "- meeting_regular (정기회의, 주간/월간 미팅)\n"
+                    "- meeting_strategy (전략/의사결정 회의)\n"
+                    "- meeting_external (고객/파트너 외부 미팅)\n"
+                    "- meeting_tech (기술/개발 회의)\n"
+                    "- seminar (강연, 세미나, 교육)\n"
+                    "- brainstorming (아이디어 발산, 기획)\n"
+                    "- project (프로젝트 관리, 진행 점검)\n"
+                    "- directive (지시, 전달, 공지)\n"
+                    "- report (보고, 브리핑)\n"
+                    "- general (기타)\n\n"
+                    '응답 형식: {"type": "meeting_strategy", "topic": "주제", "summary": "한 줄 요약"}'
+                )
+                raw_answer = await notebooklm_service.generate_summary(notebook_id, analysis_prompt)
+
+                # JSON 파싱 (실패 시 general 폴백)
+                try:
+                    # JSON 블록 추출 시도
+                    import re
+                    json_match = re.search(r'\{[^}]+\}', raw_answer)
+                    if json_match:
+                        analysis = json.loads(json_match.group())
+                    else:
+                        analysis = json.loads(raw_answer)
+                except (json.JSONDecodeError, ValueError):
+                    logger.warning(f"Job {job_id} analysis JSON parse failed, falling back to general")
+                    analysis = {"type": "general", "topic": "분석 불가", "summary": raw_answer[:200]}
+
+                # 추천 프리셋 매핑
+                type_to_presets = {
+                    "meeting_regular": ["regular", "internal_report", "directives"],
+                    "meeting_strategy": ["strategy", "executive_report", "internal_report"],
+                    "meeting_external": ["external", "internal_report"],
+                    "meeting_tech": ["tech", "internal_report"],
+                    "seminar": ["seminar"],
+                    "brainstorming": ["brainstorming", "strategy"],
+                    "project": ["project", "internal_report"],
+                    "directive": ["directives", "internal_report"],
+                    "report": ["executive_report", "internal_report", "strategy"],
+                    "general": ["general", "internal_report"],
+                }
+                analysis["suggestedPresets"] = type_to_presets.get(analysis.get("type", "general"), ["general"])
+
+                await self._update_status(
+                    job_id, "analyzed",
+                    analysisResult=json.dumps(analysis, ensure_ascii=False),
+                    statusMessage="분석 완료",
+                )
+                logger.info(f"Job {job_id} analysis completed: {analysis.get('type')}")
+
+            except Exception as e:
+                logger.error(f"Job {job_id} analyze failed: {e}", exc_info=True)
+                await self._update_status(
+                    job_id, "error",
+                    errorMessage=str(e),
+                    statusMessage=f"분석 실패: {str(e)[:200]}"
+                )
+
+    async def _run_generate(self, job_id: str, notebook_id: str, preset_config: dict):
+        """Phase 2: 요약 생성 + 슬라이드 생성 (백그라운드)"""
+        async with self.semaphore:
+            try:
+                output_dir = OUTPUTS_PATH / job_id
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                output_formats = json.loads(preset_config.get("outputFormats", '["summary"]'))
+                today = datetime.now().strftime("%Y년 %m월 %d일")
+                prompt_template = preset_config.get("promptTemplate", "이 회의 내용을 요약해주세요.")
+                prompt_template = f"[오늘 날짜: {today}] 모든 날짜 참조는 현재 기준({today})으로 작성하십시오.\n\n{prompt_template}"
+                template_config = preset_config.get("templateConfig")
+
+                # 요약 생성
+                if "summary" in output_formats:
+                    await self._update_status(job_id, "generating_summary", statusMessage="요약 생성 중...")
+                    summary = await notebooklm_service.generate_summary(notebook_id, prompt_template)
+                    summary_path = output_dir / "summary.txt"
+                    summary_path.write_text(summary, encoding="utf-8")
+                    await self._update_status(job_id, "generating_summary", summaryText=summary)
+
+                # 완료 (슬라이드는 백그라운드)
+                await self._update_status(job_id, "complete", statusMessage="요약 완료")
+                logger.info(f"Job {job_id} generate completed")
+
+                # 슬라이드 생성 (백그라운드)
+                if "slides" in output_formats:
+                    slide_instructions = self._build_slide_instructions(template_config)
+                    asyncio.create_task(self._generate_slides_async(
+                        job_id, notebook_id, output_dir, slide_instructions
+                    ))
+
+            except Exception as e:
+                logger.error(f"Job {job_id} generate failed: {e}", exc_info=True)
+                await self._update_status(
+                    job_id, "error",
+                    errorMessage=str(e),
+                    statusMessage=f"생성 실패: {str(e)[:200]}"
+                )
+
+    # ========== Legacy + Common ==========
+
     async def recover_interrupted_jobs(self):
         """Mark jobs stuck in non-terminal status as error on worker restart."""
         async with async_session() as session:
             result = await session.execute(
-                select(Job).where(Job.status.notin_(["complete", "error", "pending"]))
+                select(Job).where(Job.status.notin_(["complete", "error", "pending", "analyzed"]))
             )
             stuck_jobs = result.scalars().all()
             for job in stuck_jobs:

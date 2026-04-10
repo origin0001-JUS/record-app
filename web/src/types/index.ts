@@ -26,6 +26,7 @@ export interface Job {
   reportPath: string | null;
   slidesPath: string | null;
   templateConfig: string | null;
+  analysisResult: string | null;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +50,8 @@ export type OutputFormat = "summary" | "report" | "slides";
 export type JobStatus =
   | "pending"
   | "uploading"
+  | "analyzing"
+  | "analyzed"
   | "processing"
   | "generating_summary"
   | "generating_report"
@@ -93,6 +96,8 @@ export const OUTPUT_FORMAT_LABELS: Record<OutputFormat, string> = {
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   pending: "대기 중",
   uploading: "업로드 중",
+  analyzing: "자료 분석 중",
+  analyzed: "분석 완료",
   processing: "처리 중",
   generating_summary: "요약 생성 중",
   generating_report: "보고서 생성 중",
