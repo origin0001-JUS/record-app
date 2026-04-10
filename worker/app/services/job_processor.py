@@ -188,17 +188,28 @@ class JobProcessor:
         return "\n".join(parts) if parts else None
 
     async def _generate_slides_async(self, job_id: str, notebook_id: str, output_dir: Path, instructions: str | None = None):
-        """Generate slides in background. Job is already 'complete' for summary/report."""
+        """Generate slides in background with timeout. Job is already 'complete' for summary/report."""
         try:
             await self._update_status(job_id, "complete", statusMessage="슬라이드 생성 중 (백그라운드)...")
-            await notebooklm_service.generate_slides(notebook_id, language="ko", instructions=instructions)
+            await asyncio.wait_for(
+                self._generate_slides_work(notebook_id, output_dir, instructions),
+                timeout=300,  # 5분 타임아웃
+            )
             slides_path = str(output_dir / "slides.pdf")
-            await notebooklm_service.download_slides(notebook_id, slides_path, output_format="pdf")
             await self._update_status(job_id, "complete", slidesPath=slides_path, statusMessage="전체 완료")
             logger.info(f"Job {job_id} slides completed (background)")
+        except asyncio.TimeoutError:
+            logger.error(f"Job {job_id} slides timed out after 300s")
+            await self._update_status(job_id, "complete", statusMessage="슬라이드 생성 시간 초과 (5분)")
         except Exception as e:
             logger.error(f"Job {job_id} slides failed (background): {e}")
             await self._update_status(job_id, "complete", statusMessage=f"슬라이드 생성 실패: {str(e)[:100]}")
+
+    async def _generate_slides_work(self, notebook_id: str, output_dir: Path, instructions: str | None = None):
+        """Actual slide generation work, wrapped by timeout."""
+        await notebooklm_service.generate_slides(notebook_id, language="ko", instructions=instructions)
+        slides_path = str(output_dir / "slides.pdf")
+        await notebooklm_service.download_slides(notebook_id, slides_path, output_format="pdf")
 
 
 # Singleton
