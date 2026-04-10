@@ -193,14 +193,14 @@ class JobProcessor:
             await self._update_status(job_id, "complete", statusMessage="슬라이드 생성 중 (백그라운드)...")
             await asyncio.wait_for(
                 self._generate_slides_work(notebook_id, output_dir, instructions),
-                timeout=300,  # 5분 타임아웃
+                timeout=660,  # 11분 (내부 API 타임아웃 10분 + 다운로드 여유 1분)
             )
             slides_path = str(output_dir / "slides.pdf")
             await self._update_status(job_id, "complete", slidesPath=slides_path, statusMessage="전체 완료")
             logger.info(f"Job {job_id} slides completed (background)")
         except asyncio.TimeoutError:
-            logger.error(f"Job {job_id} slides timed out after 300s")
-            await self._update_status(job_id, "complete", statusMessage="슬라이드 생성 시간 초과 (5분)")
+            logger.error(f"Job {job_id} slides timed out after 660s")
+            await self._update_status(job_id, "complete", statusMessage="슬라이드 생성 시간 초과 (11분)")
         except Exception as e:
             logger.error(f"Job {job_id} slides failed (background): {e}")
             await self._update_status(job_id, "complete", statusMessage=f"슬라이드 생성 실패: {str(e)[:100]}")
