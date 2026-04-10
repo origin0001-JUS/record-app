@@ -12,26 +12,25 @@
 ## 최근 핸드오프 (Latest Handoff)
 
 - **From**: Claude Code (텔레그램 세션)
-- **When**: 2026-04-08
+- **When**: 2026-04-10
 - **Branch**: `master`
 - **최신 커밋**: (최신)
 
 ### 이번 세션에서 완료한 것
-- [x] 이전 QA 수정 (업로드 UI, 보고서, 프롬프트, 상태표시)
-- [x] **보고서 format 수정** — reportTemplate "briefing" → "briefing_doc" (API enum 불일치 해결)
-- [x] **report_format 매핑** — 프리셋값 → NotebookLM ReportFormat 자동 변환
-- [x] **프리셋 3개 추가** — 내부 보고, 임원 보고, 지시사항 정리 (총 11개)
-- [x] **디자인 템플릿 15개 추가** — 내부보고 5, 임원보고 5, 지시사항정리 5 (총 53개)
-- [x] 웹 타입/카테고리 매핑 업데이트
-- [x] 빌드 성공 (docs/build-logs/2026-04-09.txt)
+- [x] 보고서 format "briefing" → "briefing_doc" 수정 + report_format 매핑
+- [x] 프리셋 3개 추가 (내부 보고, 임원 보고, 지시사항 정리 → 총 11개)
+- [x] 디자인 템플릿 15개 추가 (총 53개)
+- [x] **QA: 슬라이드 백그라운드 5분 타임아웃 추가** — 무한 대기 방지
+- [x] **QA: 프리셋 순서 개선** — 보고 유형(내부/임원/지시) 상단 배치
+- [x] 빌드 성공 (docs/build-logs/2026-04-10.txt)
 
 ### 블로커 / 주의사항
-- 슬라이드 생성이 타임아웃 되는 문제는 NotebookLM API 쪽 이슈일 수 있음 (600초 타임아웃)
-- 기존 DB 프리셋 reportTemplate도 API로 briefing_doc으로 수정 완료
+- 슬라이드 생성이 5분 내 완료되지 않으면 타임아웃 메시지 표시 (Job은 complete 유지)
+- Worker 재시작 필요 (코드 변경 반영)
 
 ### 다음 에이전트의 할 일
-1. E2E 테스트 — 실제 파일 업로드 → 보고서 생성 확인 (format 수정 후)
-2. 슬라이드 타임아웃 원인 조사 (NotebookLM API 제한 vs 네트워크 이슈)
+1. E2E 테스트 — 파일 업로드 → 보고서 생성 정상 확인
+2. 슬라이드 생성 성공 여부 모니터링 (NotebookLM API 안정성)
 
 ---
 
